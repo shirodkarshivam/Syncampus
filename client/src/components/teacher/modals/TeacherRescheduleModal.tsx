@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, CalendarClock, Users } from 'lucide-react';
 import type { Lecture } from '../../../data/mockData';
+import { INITIAL_CLASSROOMS } from '../../../data/mockData';
 
 interface Props {
   isOpen: boolean;
@@ -86,17 +87,17 @@ export const TeacherRescheduleModal: React.FC<Props> = ({
               </div>
 
               <div className="form-group">
-                <label>Assigned Room</label>
+                <label>Assigned Room ({INITIAL_CLASSROOMS.length} Spaces)</label>
                 <select 
                   className="form-control" 
                   value={newRoom} 
                   onChange={(e) => setNewRoom(e.target.value)}
                 >
-                  <option value="Room 204">Room 204</option>
-                  <option value="Room 305">Room 305</option>
-                  <option value="Room 101">Room 101</option>
-                  <option value="Room 302">Room 302</option>
-                  <option value="Computer Lab 1">Computer Lab 1</option>
+                  {INITIAL_CLASSROOMS.map(c => (
+                    <option key={c.id} value={c.name}>
+                      {c.name} ({c.type} &bull; Cap: {c.capacity})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

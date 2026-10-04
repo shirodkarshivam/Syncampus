@@ -169,11 +169,11 @@ export const FacultyView: React.FC<Props> = ({
               value={selectedDept}
               onChange={(e) => setSelectedDept(e.target.value)}
             >
-              <option value="All">All Departments (135)</option>
-              <option value="Science & Technology">Science &amp; Technology (60)</option>
-              <option value="Commerce">Commerce (40)</option>
-              <option value="Management">Management (20)</option>
-              <option value="Arts">Arts (15)</option>
+              <option value="All">All Departments ({teachers.length})</option>
+              <option value="Science & Technology">Science &amp; Technology ({teachers.filter(t => t.department === 'Science & Technology').length})</option>
+              <option value="Commerce">Commerce ({teachers.filter(t => t.department === 'Commerce').length})</option>
+              <option value="Management">Management ({teachers.filter(t => t.department === 'Management').length})</option>
+              <option value="Arts">Arts ({teachers.filter(t => t.department === 'Arts').length})</option>
             </select>
           </div>
         </div>
@@ -237,7 +237,7 @@ export const FacultyView: React.FC<Props> = ({
         color: 'var(--text-muted)'
       }}>
         <span>
-          Showing <strong>{filteredTeachers.length}</strong> of <strong>135</strong> verified teachers
+          Showing <strong>{filteredTeachers.length}</strong> of <strong>{teachers.length}</strong> verified teachers
           {selectedDept !== 'All' && <span> in <strong>{selectedDept}</strong></span>}
           {searchQuery && <span> matching "<strong>{searchQuery}</strong>"</span>}
         </span>

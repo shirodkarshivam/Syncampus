@@ -16,11 +16,11 @@ import type { Lecture } from '../../data/mockData';
 import { findTeacherByQuery, getLecturesForTeacher, TEACHERS_DATA } from '../../data/teachersData';
 import type { TeacherProfile } from '../../data/teachersData';
 import { getLecturesForTeacherId } from '../../data/timetableData';
+import { timetableStore } from '../../data/timetableStore';
 
 import { TeacherHomeView } from './views/TeacherHomeView';
 import { TeacherTimetableView } from './views/TeacherTimetableView';
 import { TeacherClassesView } from './views/TeacherClassesView';
-import { TeacherUpdatesView } from './views/TeacherUpdatesView';
 import { TeacherProfileView } from './views/TeacherProfileView';
 
 import { TeacherCancelModal } from './modals/TeacherCancelModal';
@@ -46,18 +46,18 @@ export const TeacherDashboard: React.FC<Props> = ({
   }, [teacherEmail]);
 
   // Master conflict-free lectures synchronized with all student divisions
-  const masterLectures = useMemo(() => {
-    const list = getLecturesForTeacherId(activeTeacher.id);
-    return list.length > 0 ? list : getLecturesForTeacher(activeTeacher);
-  }, [activeTeacher]);
-
-  const [myLectures, setMyLectures] = useState<Lecture[]>(() => masterLectures);
+  const [myLectures, setMyLectures] = useState<Lecture[]>(() => {
+    return timetableStore.getLecturesForTeacherId(activeTeacher.id, activeTeacher.name);
+  });
 
   useEffect(() => {
-    setMyLectures(masterLectures);
-  }, [masterLectures]);
-
-
+    const update = () => {
+      setMyLectures(timetableStore.getLecturesForTeacherId(activeTeacher.id, activeTeacher.name));
+    };
+    update();
+    const unsub = timetableStore.subscribe(update);
+    return unsub;
+  }, [activeTeacher]);
 
   // Modal target states
   const [cancelModalLecture, setCancelModalLecture] = useState<Lecture | null>(null);
@@ -69,31 +69,26 @@ export const TeacherDashboard: React.FC<Props> = ({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Handlers for Teacher Actions
+  // Handlers for Teacher Actions - Synchronized with timetableStore
   const handleConfirmCancel = (id: string, reason: string) => {
-    setMyLectures(myLectures.map(l => l.id === id ? { ...l, status: 'Cancelled' } : l));
-    const target = myLectures.find(l => l.id === id);
-    showToast(`Lecture "${target?.subject}" cancelled (${reason}). Affected students notified.`);
+    const cancelled = timetableStore.cancelLecture(id, reason, activeTeacher.title);
+    if (cancelled) {
+      showToast(`Lecture "${cancelled.subject}" cancelled (${reason}). Affected students notified.`);
+    }
   };
 
   const handleConfirmReschedule = (id: string, newTime: string, newRoom: string) => {
-    setMyLectures(myLectures.map(l => {
-      if (l.id === id) {
-        return { ...l, time: newTime, room: newRoom, status: 'Rescheduled' };
-      }
-      return l;
-    }));
-    showToast(`Rescheduled to ${newTime} in ${newRoom}. Central timetable synchronized.`);
+    const updated = timetableStore.rescheduleLecture(id, newTime, newRoom, undefined, undefined, activeTeacher.title);
+    if (updated) {
+      showToast(`Rescheduled to ${newTime} in ${newRoom}. Central timetable & students synchronized.`);
+    }
   };
 
   const handleConfirmChangeRoom = (id: string, newRoom: string) => {
-    setMyLectures(myLectures.map(l => {
-      if (l.id === id) {
-        return { ...l, room: newRoom, originalRoom: l.room };
-      }
-      return l;
-    }));
-    showToast(`Classroom updated to ${newRoom}. Students notified automatically.`);
+    const updated = timetableStore.changeRoom(id, newRoom, activeTeacher.title);
+    if (updated) {
+      showToast(`Classroom updated to ${newRoom}. Students notified automatically.`);
+    }
   };
 
   // Academic day logic: if weekend (Sun/Sat), show Monday's upcoming schedule
@@ -114,9 +109,7 @@ export const TeacherDashboard: React.FC<Props> = ({
   const navItems = [
     { id: 'home', label: 'Home', icon: <Home size={18} /> },
     { id: 'timetable', label: 'My Timetable', icon: <Calendar size={18} /> },
-    { id: 'classes', label: 'My Classes', icon: <Users size={18} /> },
-    { id: 'updates', label: 'Updates', icon: <Bell size={18} /> },
-    { id: 'profile', label: 'Profile', icon: <User size={18} /> }
+    { id: 'classes', label: 'My Classes', icon: <Users size={18} /> }
   ];
 
   return (
@@ -195,7 +188,7 @@ export const TeacherDashboard: React.FC<Props> = ({
               {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
             <div className="topbar-breadcrumb">
-              SyncCampus / Faculty / <span className="current">{navItems.find(i => i.id === activeTab)?.label}</span>
+              SyncCampus / Faculty / <span className="current">{navItems.find(i => i.id === activeTab)?.label || 'Profile'}</span>
             </div>
           </div>
 
@@ -249,10 +242,6 @@ export const TeacherDashboard: React.FC<Props> = ({
 
           {activeTab === 'classes' && (
             <TeacherClassesView teacher={activeTeacher} />
-          )}
-
-          {activeTab === 'updates' && (
-            <TeacherUpdatesView />
           )}
 
           {activeTab === 'profile' && (

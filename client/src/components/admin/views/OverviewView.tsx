@@ -22,7 +22,7 @@ interface Props {
   activities: ActivityLog[];
   onNavigate: (tab: string) => void;
   onOpenCreateLecture: () => void;
-  onOpenAnnouncement: () => void;
+  onOpenAnnouncement?: () => void;
   departmentsCount?: number;
   divisionsCount?: number;
   teachersCount?: number;
@@ -35,10 +35,9 @@ export const OverviewView: React.FC<Props> = ({
   activities,
   onNavigate,
   onOpenCreateLecture,
-  onOpenAnnouncement,
   departmentsCount = 4,
   divisionsCount = 51,
-  teachersCount = 135,
+  teachersCount = 72,
   studentsCount = 2700,
   classroomsCount = 62
 }) => {
@@ -111,12 +110,12 @@ export const OverviewView: React.FC<Props> = ({
           <div>
             <h3 className="section-title">Department, Curriculum &amp; Faculty Distribution</h3>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              Comprehensive allocation of 8 degree courses, 51 divisions, and 135 teachers
+              Comprehensive allocation of 8 degree courses, 51 divisions, and 72 teachers
             </span>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button className="view-all-link" style={{ margin: 0 }} onClick={() => onNavigate('faculty')}>
-              <span>View 135 Faculty</span>
+              <span>View 72 Faculty</span>
               <ArrowRight size={15} />
             </button>
           </div>
@@ -136,7 +135,7 @@ export const OverviewView: React.FC<Props> = ({
             </thead>
             <tbody>
               {DEPARTMENTS_DATA.map((dept) => {
-                const teachersCount = dept.code === 'SCI_TECH' ? 60 : dept.code === 'COMMERCE' ? 40 : dept.code === 'MGMT' ? 20 : 15;
+                const teachersCount = dept.code === 'SCI_TECH' ? 30 : dept.code === 'COMMERCE' ? 25 : dept.code === 'MGMT' ? 10 : 7;
                 return (
                   <tr key={dept.id}>
                     <td>
@@ -175,7 +174,7 @@ export const OverviewView: React.FC<Props> = ({
                 <td><code style={{ fontSize: '12px' }}>ALL_DEPTS</code></td>
                 <td style={{ textAlign: 'right' }}><strong>8</strong></td>
                 <td style={{ textAlign: 'right', color: '#2563EB' }}><strong>51</strong></td>
-                <td style={{ textAlign: 'right', color: '#0D9488' }}><strong>135</strong></td>
+                <td style={{ textAlign: 'right', color: '#0D9488' }}><strong>72</strong></td>
                 <td style={{ textAlign: 'right' }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>2,700 Students &bull; 62 Spaces</span>
                 </td>
@@ -201,7 +200,7 @@ export const OverviewView: React.FC<Props> = ({
           <div className="action-icon-circle" style={{ background: '#F0FDFA', color: '#0D9488' }}>
             <Users size={20} />
           </div>
-          <span className="quick-action-title">Faculty (135)</span>
+          <span className="quick-action-title">Faculty (72)</span>
         </button>
 
         <button className="quick-action-btn" onClick={() => onNavigate('curriculum')}>
@@ -231,60 +230,73 @@ export const OverviewView: React.FC<Props> = ({
           </div>
           <span className="quick-action-title">Classrooms</span>
         </button>
-
-        <button className="quick-action-btn" onClick={onOpenAnnouncement}>
-          <div className="action-icon-circle">
-            <Megaphone size={20} />
-          </div>
-          <span className="quick-action-title">Announcement</span>
-        </button>
       </div>
 
       {/* Two Column Layout: Today's Schedule & Recent Activity */}
       <div className="dashboard-twin-grid">
         {/* Today's Campus Schedule */}
         <div className="content-box-card">
-          <div className="section-header">
-            <h3 className="section-title">Today&apos;s Campus Schedule</h3>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Monday Schedule</span>
-          </div>
+          {(() => {
+            const dayOfWeek = new Date().getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const activeDay = isWeekend ? 'Monday' : dayNames[dayOfWeek];
+            const todayLectures = lectures.filter(l => l.day === activeDay);
+            const totalCount = todayLectures.length || 255;
+            const scheduledCount = todayLectures.filter(l => l.status === 'Scheduled').length;
+            const rescheduledCount = todayLectures.filter(l => l.status === 'Rescheduled').length;
+            const cancelledCount = todayLectures.filter(l => l.status === 'Cancelled').length;
 
-          <div className="schedule-stat-row">
-            <div className="schedule-pill total">
-              <div className="schedule-pill-number">185</div>
-              <div className="schedule-pill-label">Total Lectures</div>
-            </div>
-            <div className="schedule-pill scheduled">
-              <div className="schedule-pill-number" style={{ color: '#1D4ED8' }}>172</div>
-              <div className="schedule-pill-label">Scheduled</div>
-            </div>
-            <div className="schedule-pill rescheduled">
-              <div className="schedule-pill-number" style={{ color: '#B45309' }}>8</div>
-              <div className="schedule-pill-label">Rescheduled</div>
-            </div>
-            <div className="schedule-pill cancelled">
-              <div className="schedule-pill-number" style={{ color: '#B91C1C' }}>5</div>
-              <div className="schedule-pill-label">Cancelled</div>
-            </div>
-          </div>
-
-          {/* Mini preview list */}
-          <div className="mini-schedule-list">
-            {lectures.slice(0, 4).map((lec) => (
-              <div key={lec.id} className="mini-schedule-item">
-                <div className="mini-time">{lec.time}</div>
-                <div className="mini-subject-info">
-                  <div className="mini-subject-title">{lec.subject}</div>
-                  <div className="mini-subject-meta">
-                    {lec.teacher} &bull; {lec.room} &bull; {lec.course} Sem {lec.semester} Div {lec.division}
+            return (
+              <>
+                <div className="section-header">
+                  <div>
+                    <h3 className="section-title">Today&apos;s Campus Schedule</h3>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                      {isWeekend ? `Weekend • Showing Monday (${totalCount} Periods)` : `${activeDay} Schedule (${totalCount} Periods)`}
+                    </span>
                   </div>
                 </div>
-                <span className={`status-badge ${lec.status}`}>
-                  {lec.status}
-                </span>
-              </div>
-            ))}
-          </div>
+
+                <div className="schedule-stat-row">
+                  <div className="schedule-pill total">
+                    <div className="schedule-pill-number">{totalCount}</div>
+                    <div className="schedule-pill-label">Total Periods</div>
+                  </div>
+                  <div className="schedule-pill scheduled">
+                    <div className="schedule-pill-number" style={{ color: '#1D4ED8' }}>{scheduledCount}</div>
+                    <div className="schedule-pill-label">Scheduled</div>
+                  </div>
+                  <div className="schedule-pill rescheduled">
+                    <div className="schedule-pill-number" style={{ color: '#B45309' }}>{rescheduledCount}</div>
+                    <div className="schedule-pill-label">Rescheduled</div>
+                  </div>
+                  <div className="schedule-pill cancelled">
+                    <div className="schedule-pill-number" style={{ color: '#B91C1C' }}>{cancelledCount}</div>
+                    <div className="schedule-pill-label">Cancelled</div>
+                  </div>
+                </div>
+
+                {/* Mini preview list */}
+                <div className="mini-schedule-list">
+                  {todayLectures.slice(0, 5).map((lec) => (
+                    <div key={lec.id} className="mini-schedule-item">
+                      <div className="mini-time">{lec.time}</div>
+                      <div className="mini-subject-info">
+                        <div className="mini-subject-title">{lec.subject}</div>
+                        <div className="mini-subject-meta">
+                          {lec.teacher} &bull; {lec.room} &bull; {lec.course} Sem {lec.semester} Div {lec.division}
+                        </div>
+                      </div>
+                      <span className={`status-badge ${lec.status}`}>
+                        {lec.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
 
           <button className="view-all-link" onClick={() => onNavigate('timetable')}>
             <span>View Full Timetable</span>

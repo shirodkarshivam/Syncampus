@@ -1,13 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Home, 
   Building2, 
   Layers, 
   Calendar, 
   DoorOpen, 
-  FileText, 
-  Megaphone, 
-  BarChart3, 
   Settings, 
   LogOut, 
   Bell, 
@@ -24,17 +21,14 @@ import {
   INITIAL_ACTIVITIES, 
   INITIAL_LECTURES, 
   INITIAL_CLASSROOMS, 
-  INITIAL_EXAMINATIONS, 
-  INITIAL_ANNOUNCEMENTS,
   DEPARTMENTS_DATA,
   ACADEMIC_DIVISIONS_DATA
 } from '../../data/mockData';
+import { timetableStore } from '../../data/timetableStore';
 import type {
   Lecture,
   ActivityLog,
   Classroom,
-  Examination,
-  Announcement,
   DepartmentSummary,
   AcademicDivisionEntry
 } from '../../data/mockData';
@@ -43,6 +37,7 @@ import { TEACHERS_DATA } from '../../data/teachersData';
 import type { TeacherProfile } from '../../data/teachersData';
 import { INITIAL_STUDENTS_DATA } from '../../data/studentsData';
 import type { Student } from '../../data/studentsData';
+import { INITIAL_ALL_LECTURES } from '../../data/timetableData';
 
 import { OverviewView } from './views/OverviewView';
 import { DepartmentsView } from './views/DepartmentsView';
@@ -52,20 +47,15 @@ import { StudentsView } from './views/StudentsView';
 import { CurriculumView } from './views/CurriculumView';
 import { TimetableView } from './views/TimetableView';
 import { ClassroomsView } from './views/ClassroomsView';
-import { ExamsView } from './views/ExamsView';
-import { AnnouncementsView } from './views/AnnouncementsView';
-import { ReportsView } from './views/ReportsView';
 import { SettingsView } from './views/SettingsView';
 
 import { CreateLectureModal } from './modals/CreateLectureModal';
 import { RescheduleModal } from './modals/RescheduleModal';
-import { AddAnnouncementModal } from './modals/AddAnnouncementModal';
 import { AddTeacherModal } from './modals/AddTeacherModal';
 import { AddStudentModal } from './modals/AddStudentModal';
 import { AddDepartmentModal } from './modals/AddDepartmentModal';
 import { AddClassroomModal } from './modals/AddClassroomModal';
 import { AddDivisionModal } from './modals/AddDivisionModal';
-import { AddExamModal } from './modals/AddExamModal';
 
 interface Props {
   adminEmail?: string;
@@ -82,20 +72,24 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   const [departments, setDepartments] = useState<DepartmentSummary[]>(DEPARTMENTS_DATA);
   const [divisions, setDivisions] = useState<AcademicDivisionEntry[]>(ACADEMIC_DIVISIONS_DATA);
   const [classrooms, setClassrooms] = useState<Classroom[]>(INITIAL_CLASSROOMS);
-  const [lectures, setLectures] = useState<Lecture[]>(INITIAL_LECTURES);
-  const [exams, setExams] = useState<Examination[]>(INITIAL_EXAMINATIONS);
-  const [announcements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
+  const [lectures, setLectures] = useState<Lecture[]>(() => timetableStore.getAllLectures());
+
+  useEffect(() => {
+    const unsub = timetableStore.subscribe(() => {
+      setLectures(timetableStore.getAllLectures());
+    });
+    return unsub;
+  }, []);
+
   const [activities, setActivities] = useState<ActivityLog[]>(INITIAL_ACTIVITIES);
 
   // Modals state
   const [isCreateLectureOpen, setIsCreateLectureOpen] = useState(false);
-  const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
   const [isAddTeacherOpen, setIsAddTeacherOpen] = useState(false);
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [isAddDeptOpen, setIsAddDeptOpen] = useState(false);
   const [isAddClassroomOpen, setIsAddClassroomOpen] = useState(false);
   const [isAddDivisionOpen, setIsAddDivisionOpen] = useState(false);
-  const [isAddExamOpen, setIsAddExamOpen] = useState(false);
   const [rescheduleTarget, setRescheduleTarget] = useState<Lecture | null>(null);
 
   // Notification Banner
@@ -268,65 +262,9 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     showNotification(`Division cohort removed.`);
   };
 
-  // 6. Examination Management
-  const handleAddExam = (newExam: Examination) => {
-    setExams(prev => [newExam, ...prev]);
-    logActivity(
-      `New Exam Scheduled: ${newExam.subject}`,
-      `${newExam.course} Sem ${newExam.semester} • Date: ${newExam.date} • Room: ${newExam.room}`,
-      'announcement'
-    );
-    showNotification(`Exam for "${newExam.subject}" scheduled.`);
-  };
-
-  const handleDeleteExam = (id: string) => {
-    const target = exams.find(e => e.id === id);
-    if (!confirm(`Are you sure you want to cancel exam "${target?.subject}"?`)) return;
-    setExams(prev => prev.filter(e => e.id !== id));
-    logActivity(
-      `Exam Cancelled: ${target?.subject || id}`,
-      `Removed examination schedule for ${target?.course}`,
-      'announcement'
-    );
-    showNotification(`Examination "${target?.subject}" cancelled.`);
-  };
-
-  const handlePublishExam = (id: string) => {
-    setExams(prev => prev.map(e => e.id === id ? { ...e, status: 'Published' } : e));
-    const target = exams.find(e => e.id === id);
-    logActivity(
-      `Examination Published: ${target?.subject}`,
-      `Timetable synchronized to all enrolled students in ${target?.course}`,
-      'announcement'
-    );
-    showNotification('Examination timetable published and synced across divisions.');
-  };
-
-  // 7. Announcement Management
-  const handleAddAnnouncement = (ann: Announcement) => {
-    setAnnouncements(prev => [ann, ...prev]);
-    logActivity(
-      `New Announcement: ${ann.title}`,
-      `Audience: ${ann.audience} • Push notification broadcast complete`,
-      'announcement'
-    );
-    showNotification(`Announcement "${ann.title}" published to ${ann.audience}.`);
-  };
-
-  const handleDeleteAnnouncement = (id: string) => {
-    const target = announcements.find(a => a.id === id);
-    setAnnouncements(prev => prev.filter(a => a.id !== id));
-    logActivity(
-      `Announcement Deleted: ${target?.title || id}`,
-      `Removed from notification broadcasts`,
-      'announcement'
-    );
-    showNotification(`Announcement removed.`);
-  };
-
-  // 8. Timetable Lecture Management
+  // 6. Timetable Lecture Management
   const handleAddLecture = (newLecture: Lecture) => {
-    setLectures(prev => [newLecture, ...prev]);
+    timetableStore.addLecture(newLecture);
     logActivity(
       `Admin Scheduled Lecture: ${newLecture.subject}`,
       `${newLecture.room} • ${newLecture.day} ${newLecture.time} • Synced to ${newLecture.course} ${newLecture.division}`,
@@ -335,40 +273,29 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     showNotification(`Lecture "${newLecture.subject}" created and synchronized with division ${newLecture.division}.`);
   };
 
-  const handleConfirmReschedule = (id: string, newTime: string, newRoom: string) => {
-    setLectures(prev => prev.map((l) => {
-      if (l.id === id) {
-        return {
-          ...l,
-          originalTime: l.time,
-          originalRoom: l.room,
-          time: newTime,
-          room: newRoom,
-          status: 'Rescheduled'
-        };
-      }
-      return l;
-    }));
-
-    const targetLec = lectures.find(l => l.id === id);
-    logActivity(
-      `Admin Rescheduled ${targetLec?.subject || 'Lecture'}`,
-      `${newTime} • ${newRoom} • Division timetable automatically updated`,
-      'reschedule'
-    );
-    showNotification(`Lecture rescheduled to ${newTime} (${newRoom}). Affected division synchronized.`);
+  const handleConfirmReschedule = (id: string, newTime: string, newRoom: string, newDay?: string, newTeacher?: string) => {
+    const updated = timetableStore.rescheduleLecture(id, newTime, newRoom, newDay, newTeacher, 'Admin');
+    if (updated) {
+      logActivity(
+        `Admin Rescheduled ${updated.subject}`,
+        `${updated.day} ${newTime} • ${newRoom}${newTeacher ? ` • ${newTeacher}` : ''} • Division timetable synchronized`,
+        'reschedule'
+      );
+      showNotification(`Lecture "${updated.subject}" updated. All students in division ${updated.division} notified.`);
+    }
   };
 
   const handleCancelLecture = (id: string) => {
     if (!confirm('Are you sure you want to cancel this lecture? Affected students will be notified immediately.')) return;
-    setLectures(prev => prev.map(l => l.id === id ? { ...l, status: 'Cancelled' } : l));
-    const targetLec = lectures.find(l => l.id === id);
-    logActivity(
-      `Admin Cancelled ${targetLec?.subject || 'Lecture'}`,
-      `${targetLec?.room} • Schedule slot released`,
-      'status'
-    );
-    showNotification(`Lecture cancelled. Division schedule updated.`);
+    const cancelled = timetableStore.cancelLecture(id, 'Cancelled by Academic Administration', 'Admin');
+    if (cancelled) {
+      logActivity(
+        `Admin Cancelled ${cancelled.subject}`,
+        `${cancelled.room} • ${cancelled.day} ${cancelled.time} • Schedule slot released`,
+        'status'
+      );
+      showNotification(`Lecture "${cancelled.subject}" cancelled. Division ${cancelled.division} students notified.`);
+    }
   };
 
   // Suggested next IDs
@@ -386,9 +313,6 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     { id: 'curriculum', label: 'Curriculum & Subjects', icon: <BookOpen size={18} /> },
     { id: 'timetable', label: 'Timetable', icon: <Calendar size={18} /> },
     { id: 'classrooms', label: `Spaces & Labs (${classrooms.length})`, icon: <DoorOpen size={18} /> },
-    { id: 'exams', label: `Exams (${exams.length})`, icon: <FileText size={18} /> },
-    { id: 'announcements', label: `Announcements (${announcements.length})`, icon: <Megaphone size={18} /> },
-    { id: 'reports', label: 'Reports', icon: <BarChart3 size={18} /> },
     { id: 'settings', label: 'Settings', icon: <Settings size={18} /> },
   ];
 
@@ -500,7 +424,6 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
               activities={activities}
               onNavigate={(tab) => setActiveTab(tab)}
               onOpenCreateLecture={() => setIsCreateLectureOpen(true)}
-              onOpenAnnouncement={() => setIsAnnouncementOpen(true)}
               departmentsCount={departments.length}
               divisionsCount={divisions.length}
               teachersCount={teachers.length}
@@ -570,27 +493,6 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
             />
           )}
 
-          {activeTab === 'exams' && (
-            <ExamsView
-              exams={exams}
-              onPublishExam={handlePublishExam}
-              onOpenAddExam={() => setIsAddExamOpen(true)}
-              onDeleteExam={handleDeleteExam}
-            />
-          )}
-
-          {activeTab === 'announcements' && (
-            <AnnouncementsView
-              announcements={announcements}
-              onOpenCreate={() => setIsAnnouncementOpen(true)}
-              onDeleteAnnouncement={handleDeleteAnnouncement}
-            />
-          )}
-
-          {activeTab === 'reports' && (
-            <ReportsView />
-          )}
-
           {activeTab === 'settings' && (
             <SettingsView />
           )}
@@ -612,12 +514,9 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         onClose={() => setRescheduleTarget(null)}
         lecture={rescheduleTarget}
         onConfirmReschedule={handleConfirmReschedule}
-      />
-
-      <AddAnnouncementModal
-        isOpen={isAnnouncementOpen}
-        onClose={() => setIsAnnouncementOpen(false)}
-        onAddAnnouncement={handleAddAnnouncement}
+        onCancelLecture={handleCancelLecture}
+        teachers={teachers}
+        classrooms={classrooms}
       />
 
       <AddTeacherModal
@@ -651,12 +550,6 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
         onClose={() => setIsAddDivisionOpen(false)}
         onAddDivision={handleAddDivision}
         suggestedNo={nextDivisionNo}
-      />
-
-      <AddExamModal
-        isOpen={isAddExamOpen}
-        onClose={() => setIsAddExamOpen(false)}
-        onAddExam={handleAddExam}
       />
     </div>
   );

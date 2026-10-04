@@ -139,193 +139,142 @@ Extra practical period	            Friday 15:00-16:00 for selected IT/CS batches
 
 
  BSc IT, BSc CS, B.Com, BFM, BBI, BMS, BBA and BA.
-
-## 1. Science & Technology Department
-
-### BSc IT / BSc CS Faculty
-
-| ID | Teacher Name | Department | Subjects They Can Teach |
-|---|---|---|---|
-| T001 | Rahul Patil | Science & Technology | DBMS, Database Systems |
-| T002 | Sneha Joshi | Science & Technology | Java Programming, OOP |
-| T003 | Amit Shah | Science & Technology | Python Programming, AI |
-| T004 | Neha Kulkarni | Science & Technology | Web Development, Advanced Web Development |
-| T005 | Karan Mehta | Science & Technology | Data Structures, Advanced Algorithms |
-| T006 | Pooja More | Science & Technology | Software Engineering, Project Management |
-| T007 | Rohan Desai | Science & Technology | Cyber Security, Network Security |
-| T008 | Anjali Singh | Science & Technology | Mathematics, Business Mathematics |
-| T009 | Vivek Joshi | Science & Technology | Computer Networks, Networking |
-| T010 | Priyanka Nair | Science & Technology | Operating Systems, Computer Fundamentals |
-| T011 | Akash Sharma | Science & Technology | Programming in C, C Programming |
-| T012 | Nisha Patil | Science & Technology | Digital Electronics, Computer Fundamentals |
-| T013 | Sagar Deshmukh | Science & Technology | Database Systems, DBMS |
-| T014 | Riya Mehta | Science & Technology | Web Development, HTML/CSS/JavaScript |
-| T015 | Manish Kulkarni | Science & Technology | Java Programming, Software Engineering |
-| T016 | Kavita Joshi | Science & Technology | Python Programming, Data Analytics |
-| T017 | Pratik Shah | Science & Technology | Data Structures, Algorithms |
-| T018 | Snehal Patil | Science & Technology | Operating Systems, Computer Fundamentals |
-| T019 | Nitin More | Science & Technology | Computer Networks, Cyber Security |
-| T020 | Swati Desai | Science & Technology | Mathematics, Statistics |
-| T021 | Rohit Kulkarni | Science & Technology | Software Testing, Software Engineering |
-| T022 | Priti Sharma | Science & Technology | Cloud Computing, Computer Networks |
-| T023 | Kunal Patil | Science & Technology | Cloud Computing, Advanced Web Development |
-| T024 | Megha Shah | Science & Technology | Artificial Intelligence, Python |
-| T025 | Arjun Joshi | Science & Technology | Cyber Security, Network Security |
-| T026 | Varsha More | Science & Technology | Software Testing, Project Management |
-| T027 | Sameer Desai | Science & Technology | Programming in C, Data Structures |
-| T028 | Rakesh Mehta | Science & Technology | Java Programming, Advanced Algorithms |
-| T029 | Aarti Kulkarni | Science & Technology | Communication Skills, Project Management |
-| T030 | Deepak Patil | Science & Technology | Digital Electronics, Computer Fundamentals |
-| T031 | Komal Joshi | Science & Technology | Database Systems, Software Testing |
-| T032 | Sachin Shah | Science & Technology | Web Development, Digital Electronics |
-| T033 | Priya Deshmukh | Science & Technology | Artificial Intelligence, Python |
-| T034 | Omkar Mehta | Science & Technology | Computer Networks, Cloud Computing |
-| T035 | Sonali Patil | Science & Technology | Mathematics, Statistics |
-| T036 | Harsh Kulkarni | Science & Technology | Cyber Security, Software Testing |
-| T037 | Mansi Shah | Science & Technology | Java Programming, Web Development |
-| T038 | Abhishek Joshi | Science & Technology | Data Structures, Algorithms |
-| T039 | Neelam More | Science & Technology | Operating Systems, Computer Fundamentals |
-| T040 | Varun Desai | Science & Technology | DBMS, Database Systems |
-| T041 | Radhika Patil | Science & Technology | Python, Artificial Intelligence |
-| T042 | Tejas Kulkarni | Science & Technology | Cloud Computing, Cyber Security |
-| T043 | Shweta Mehta | Science & Technology | Software Engineering, Software Testing |
-| T044 | Yash Shah | Science & Technology | Advanced Web Development, Web Development |
-| T045 | Pankaj Joshi | Science & Technology | Programming in C, Java |
-| T046 | Divya Deshmukh | Science & Technology | Mathematics, Communication Skills |
-| T047 | Ajay Patil | Science & Technology | Computer Networks, Operating Systems |
-| T048 | Rutuja Kulkarni | Science & Technology | Project Management, Software Engineering |
-| T049 | Ganesh More | Science & Technology | Data Structures, Programming in C |
-| T050 | Isha Shah | Science & Technology | Artificial Intelligence, Python |
-| T051 | Mohit Desai | Science & Technology | Cyber Security, Cloud Computing |
-| T052 | Neha Patil | Science & Technology | Database Systems, DBMS |
-| T053 | Siddharth Joshi | Science & Technology | Java Programming, Software Engineering |
-| T054 | Payal Mehta | Science & Technology | Web Development, Advanced Web Development |
-| T055 | Aniket Shah | Science & Technology | Operating Systems, Computer Networks |
-| T056 | Shruti Kulkarni | Science & Technology | Mathematics, Statistics |
-| T057 | Chetan Patil | Science & Technology | Software Testing, Cyber Security |
-| T058 | Monika Desai | Science & Technology | Communication Skills, Project Management |
-| T059 | Raj More | Science & Technology | Cloud Computing, Computer Networks |
-| T060 | Tanvi Joshi | Science & Technology | Artificial Intelligence, Data Analytics |
-
-**Science & Technology faculty: 60**
-
 ---
 
-# 2. Commerce Department
+Teacher ID	Teacher Name	Department	Subjects They Can Teach
+T001	Rahul Patil	Science & Technology	DBMS; Database Systems; Software Testing; Project Management
+T002	Sneha Joshi	Science & Technology	Java Programming; OOP; Software Engineering; Advanced Algorithms
+T003	Amit Shah	Science & Technology	Python Programming; Artificial Intelligence; Data Analytics; AI Fundamentals
+T004	Neha Kulkarni	Science & Technology	Web Development; Advanced Web Development; HTML/CSS/JavaScript; Digital Technologies
+T005	Karan Mehta	Science & Technology	Data Structures; Advanced Algorithms; Algorithms; Programming in C
+T006	Pooja More	Science & Technology	Software Engineering; Project Management; Software Testing; Project
+T007	Rohan Desai	Science & Technology	Cyber Security; Network Security; Security Fundamentals; Risk & Security
+T008	Anjali Singh	Science & Technology	Mathematics; Business Mathematics; Statistics; Quantitative Methods
+T009	Vivek Joshi	Science & Technology	Computer Networks; Networking; Cloud Computing; Network Security
+T010	Priyanka Nair	Science & Technology	Operating Systems; Computer Fundamentals; System Administration; Computer Architecture
+T011	Akash Sharma	Science & Technology	Programming in C; C Programming; Data Structures; Algorithms
+T012	Nisha Patil	Science & Technology	Digital Electronics; Computer Fundamentals; Computer Architecture; Digital Systems
+T013	Sagar Deshmukh	Science & Technology	Database Systems; DBMS; Data Management; Software Testing
+T014	Riya Mehta	Science & Technology	Web Development; Advanced Web Development; Java Programming; HTML/CSS/JavaScript
+T015	Manish Kulkarni	Science & Technology	Java Programming; Software Engineering; OOP; Software Testing
+T016	Kavita Joshi	Science & Technology	Python Programming; Data Analytics; Artificial Intelligence; Statistics
+T017	Pratik Shah	Science & Technology	Data Structures; Algorithms; Programming in C; Advanced Algorithms
+T018	Snehal Patil	Science & Technology	Operating Systems; Computer Fundamentals; Computer Architecture; System Administration
+T019	Nitin More	Science & Technology	Computer Networks; Cyber Security; Network Security; Cloud Computing
+T020	Swati Desai	Science & Technology	Mathematics; Statistics; Business Mathematics; Quantitative Methods
+T021	Rohit Kulkarni	Science & Technology	Software Testing; Software Engineering; Project Management; Quality Assurance
+T022	Priti Sharma	Science & Technology	Cloud Computing; Computer Networks; Distributed Systems; Network Administration
+T023	Kunal Patil	Science & Technology	Cloud Computing; Advanced Web Development; Web Development; Distributed Systems
+T024	Megha Shah	Science & Technology	Artificial Intelligence; Python Programming; Data Analytics; Machine Learning
+T025	Arjun Joshi	Science & Technology	Cyber Security; Network Security; Computer Networks; Security Fundamentals
+T026	Varsha More	Science & Technology	Software Testing; Project Management; Software Engineering; Quality Assurance
+T027	Sameer Desai	Science & Technology	Programming in C; Data Structures; Algorithms; Computer Fundamentals
+T028	Rakesh Mehta	Science & Technology	Java Programming; Advanced Algorithms; OOP; Data Structures
+T029	Aarti Kulkarni	Science & Technology	Communication Skills; Project Management; Professional Communication; Presentation Skills
+T030	Deepak Patil	Science & Technology	Digital Electronics; Computer Fundamentals; Digital Systems; Computer Architecture
+T031	Meera Kulkarni	Commerce	Financial Accounting; Corporate Accounting; Advanced Accounting; Accounting
+T032	Rajesh Joshi	Commerce	Business Law; Commercial Law; Banking Law; Corporate Law
+T033	Kavita Shah	Commerce	Economics; Business Economics; Financial Markets; International Finance
+T034	Priya Nair	Commerce	Financial Management; Corporate Finance; Investment Management; Financial Modelling
+T035	Sameer Khan	Commerce	Banking; Banking Operations; Financial Services; Banking & Insurance
+T036	Ritu Sharma	Commerce	Marketing Management; Marketing; Business Communication; Consumer Behaviour
+T037	Anil Deshmukh	Commerce	Business Communication; Communication Skills; Professional Communication; Business English
+T038	Asha Patil	Commerce	Cost Accounting; Management Accounting; Financial Accounting; Advanced Accounting
+T039	Nitin More	Commerce	Taxation; Direct Tax; Accounting; Business Law
+T040	Swati Joshi	Commerce	Auditing; Advanced Accounting; Accounting; Corporate Accounting
+T041	Snehal Shah	Commerce	Business Statistics; Statistics; Business Mathematics; Quantitative Methods
+T042	Rohit Mehta	Commerce	Investment Management; Security Analysis; Portfolio Management; Financial Markets
+T043	Varsha Nair	Commerce	Corporate Finance; Financial Management; Financial Markets; Investment Management
+T044	Manish Desai	Commerce	Financial Markets; Investment Management; Derivatives; Security Analysis
+T045	Poonam Kulkarni	Commerce	Human Resource Management; Organizational Behaviour; Business Management; Leadership
+T046	Deepak Patil	Commerce	Operations Management; Management; Business Management; Project Management
+T047	Jyoti Sharma	Commerce	Organizational Behaviour; Business Management; Human Resource Management; Leadership
+T048	Suresh Joshi	Commerce	Entrepreneurship; Business Management; Innovation; Business Communication
+T049	Alka Shah	Commerce	Financial Accounting; Cost Accounting; Corporate Accounting; Management Accounting
+T050	Mahesh Kulkarni	Commerce	Economics; Business Economics; Business Statistics; Commercial Geography
+T051	Rekha Patil	Commerce	Business Communication; Marketing; Communication Skills; Consumer Behaviour
+T052	Sanjay More	Commerce	Banking; Financial Services; Banking Operations; Insurance
+T053	Neeta Desai	Commerce	Insurance; Risk Management; Banking & Insurance; Financial Services
+T054	Pravin Joshi	Commerce	Financial Markets; Derivatives; Security Analysis; Investment Management
+T055	Ramesh Shah	Commerce	Portfolio Management; Investment Analysis; Security Analysis; Wealth Management
+T056	Arjun Mehta	Management	Principles of Management; Business Management; Strategic Management; Leadership
+T057	Priya Desai	Management	Marketing Management; Digital Marketing; Marketing; Consumer Behaviour
+T058	Rahul Sharma	Management	Business Communication; Leadership; Professional Communication; Business English
+T059	Sneha Patil	Management	Finance; Financial Management; Financial Accounting; Corporate Finance
+T060	Amit Joshi	Management	Business Analytics; Business Statistics; Data Analytics; Quantitative Methods
+T061	Priti Shah	Management	Human Resources; Human Resource Management; Organizational Behaviour; Leadership
+T062	Rakesh More	Management	Entrepreneurship; Innovation; Business Management; Strategic Management
+T063	Nisha Mehta	Management	Operations Management; Project Management; Business Management; Operations
+T064	Kunal Desai	Management	Business Law; Corporate Law; Commercial Law; Business Ethics
+T065	Riya Kulkarni	Management	Digital Marketing; Marketing; Business Communication; Consumer Behaviour
+T066	Kavita Desai	Arts	Psychology; Sociology; Social Psychology; Human Behaviour
+T067	Anjali More	Arts	English; Communication Skills; English Literature; Business English
+T068	Mahesh Patil	Arts	Sociology; Political Science; Social Studies; Human Society
+T069	Rekha Shah	Arts	History; Sociology; Indian History; Cultural Studies
+T070	Sunil Joshi	Arts	Political Science; History; Public Administration; Indian Politics
+T071	Neeta Kulkarni	Arts	Communication Skills; English; Presentation Skills; English Literature
+T072	Ashwini Patil	Arts	Psychology; Sociology; Human Behaviour; Social Psychology
 
-These teachers cover **B.Com, BFM, BBI and BMS**.
-
-| ID | Teacher Name | Department | Subjects They Can Teach |
-|---|---|---|---|
-| T061 | Meera Kulkarni | Commerce | Financial Accounting, Corporate Accounting |
-| T062 | Rajesh Joshi | Commerce | Business Law, Commercial Law |
-| T063 | Kavita Shah | Commerce | Economics, Business Economics |
-| T064 | Priya Nair | Commerce | Financial Management, Corporate Finance |
-| T065 | Sameer Khan | Commerce | Banking, Banking Operations |
-| T066 | Ritu Sharma | Commerce | Marketing Management, Marketing |
-| T067 | Anil Deshmukh | Commerce | Business Communication |
-| T068 | Asha Patil | Commerce | Cost Accounting, Management Accounting |
-| T069 | Nitin More | Commerce | Taxation, Direct Tax |
-| T070 | Swati Joshi | Commerce | Auditing, Advanced Accounting |
-| T071 | Snehal Shah | Commerce | Business Statistics, Statistics |
-| T072 | Rohit Mehta | Commerce | Investment Management, Security Analysis |
-| T073 | Varsha Nair | Commerce | Corporate Finance, Financial Management |
-| T074 | Manish Desai | Commerce | Financial Markets, Investment Management |
-| T075 | Poonam Kulkarni | Commerce | Human Resource Management, Organizational Behaviour |
-| T076 | Deepak Patil | Commerce | Operations Management, Management |
-| T077 | Jyoti Sharma | Commerce | Organizational Behaviour, Business Management |
-| T078 | Suresh Joshi | Commerce | Entrepreneurship, Business Management |
-| T079 | Alka Shah | Commerce | Financial Accounting, Cost Accounting |
-| T080 | Mahesh Kulkarni | Commerce | Economics, Business Economics |
-| T081 | Rekha Patil | Commerce | Business Communication, Marketing |
-| T082 | Sanjay More | Commerce | Banking, Financial Services |
-| T083 | Neeta Desai | Commerce | Insurance, Risk Management |
-| T084 | Pravin Joshi | Commerce | Financial Markets, Derivatives |
-| T085 | Ramesh Shah | Commerce | Portfolio Management, Investment Analysis |
-| T086 | Archana Patil | Commerce | Taxation, Accounting |
-| T087 | Vinay Kulkarni | Commerce | Auditing, Accounting |
-| T088 | Seema Mehta | Commerce | Business Mathematics, Statistics |
-| T089 | Dinesh Joshi | Commerce | Business Law, Banking Law |
-| T090 | Shilpa Deshmukh | Commerce | Financial Management, Investment Management |
-| T091 | Ashok Patil | Commerce | Banking, Insurance |
-| T092 | Madhuri Shah | Commerce | Marketing, Business Communication |
-| T093 | Rajiv More | Commerce | Cost Accounting, Financial Accounting |
-| T094 | Sonam Joshi | Commerce | Human Resource Management, Organizational Behaviour |
-| T095 | Hemant Desai | Commerce | Operations Management, Business Management |
-| T096 | Nandini Patil | Commerce | Entrepreneurship, Business Communication |
-| T097 | Kiran Mehta | Commerce | Financial Markets, Security Analysis |
-| T098 | Umesh Shah | Commerce | Risk Management, Insurance |
-| T099 | Sheetal Kulkarni | Commerce | Economics, Business Statistics |
-| T100 | Prakash Joshi | Commerce | Corporate Finance, Financial Markets |
-
-**Commerce faculty: 40**
-
----
-
-# 3. Management Department
-
-These teachers are mainly for **BBA**.
-
-| ID | Teacher Name | Department | Subjects They Can Teach |
-|---|---|---|---|
-| T101 | Arjun Mehta | Management | Principles of Management, Business Management |
-| T102 | Priya Desai | Management | Marketing Management, Digital Marketing |
-| T103 | Rahul Sharma | Management | Business Communication, Leadership |
-| T104 | Sneha Patil | Management | Finance, Financial Management |
-| T105 | Amit Joshi | Management | Business Analytics, Business Statistics |
-| T106 | Priti Shah | Management | Human Resources, Organizational Behaviour |
-| T107 | Rakesh More | Management | Entrepreneurship, Innovation |
-| T108 | Nisha Mehta | Management | Operations Management |
-| T109 | Kunal Desai | Management | Business Law, Corporate Law |
-| T110 | Riya Kulkarni | Management | Digital Marketing, Marketing |
-| T111 | Manav Shah | Management | Strategic Management, Business Management |
-| T112 | Ayesha Patil | Management | Human Resource Management, Leadership |
-| T113 | Rohit Desai | Management | Business Analytics, Statistics |
-| T114 | Kavya Joshi | Management | Business Communication, English |
-| T115 | Sandeep More | Management | Operations Management, Project Management |
-| T116 | Neha Shah | Management | Finance, Financial Accounting |
-| T117 | Vivek Mehta | Management | Entrepreneurship, Strategic Management |
-| T118 | Rohan Patil | Management | Digital Marketing, Marketing |
-| T119 | Shreya Deshmukh | Management | Human Resources, Organizational Behaviour |
-| T120 | Aditya Kulkarni | Management | Business Law, Business Communication |
-
-**Management faculty: 20**
-
----
-
-# 4. Arts Department
-
-These teachers are for **BA**.
-
-| ID | Teacher Name | Department | Subjects They Can Teach |
-|---|---|---|---|
-| T121 | Kavita Desai | Arts | Psychology |
-| T122 | Anjali More | Arts | English, Communication Skills |
-| T123 | Mahesh Patil | Arts | Sociology |
-| T124 | Rekha Shah | Arts | History |
-| T125 | Sunil Joshi | Arts | Political Science |
-| T126 | Neeta Kulkarni | Arts | Communication Skills, English |
-| T127 | Ashwini Patil | Arts | Psychology, Sociology |
-| T128 | Rajendra More | Arts | History, Political Science |
-| T129 | Pooja Shah | Arts | English, Communication Skills |
-| T130 | Suresh Kulkarni | Arts | Economics |
-| T131 | Madhavi Joshi | Arts | Psychology |
-| T132 | Pradeep Desai | Arts | Sociology, Political Science |
-| T133 | Smita Patil | Arts | History, Sociology |
-| T134 | Vinod Shah | Arts | Political Science, History |
-| T135 | Rina More | Arts | English, Communication Skills |
-
-**Arts faculty: 15**
-
----
-
-# Total Teacher Structure
-
-| Department | Teachers |
-|---|---:|
-| Science & Technology | 60 |
-| Commerce | 40 |
-| Management | 20 |
-| Arts | 15 |
-| **Total** | **135** |
-
+Room ID	Room Name	Room Type	Capacity	Department Use	Facilities
+ROOM-001	Room 101	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-002	Room 102	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-003	Room 103	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-004	Room 104	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-005	Room 105	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-006	Room 106	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-007	Room 107	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-008	Room 108	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-009	Room 109	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-010	Room 110	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-011	Room 111	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-012	Room 112	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-013	Room 113	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-014	Room 114	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-015	Room 115	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-016	Room 116	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-017	Room 117	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-018	Room 118	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-019	Room 119	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-020	Room 120	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-021	Room 121	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-022	Room 122	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-023	Room 123	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-024	Room 124	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-025	Room 125	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-026	Room 126	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-027	Room 127	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-028	Room 128	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-029	Room 129	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-030	Room 130	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-031	Room 131	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-032	Room 132	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-033	Room 133	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-034	Room 134	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-035	Room 135	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-036	Room 136	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-037	Room 137	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-038	Room 138	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-039	Room 139	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-040	Room 140	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-041	Room 141	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-042	Room 142	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-043	Room 143	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-044	Room 144	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-045	Room 145	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-046	Room 146	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-047	Room 147	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-048	Room 148	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-049	Room 149	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-050	Room 150	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-051	Room 151	General Classroom	60	All Departments	Projector, Whiteboard
+ROOM-052	Room 152	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-053	Room 153	General Classroom	55	All Departments	Projector, Whiteboard
+ROOM-054	Room 154	General Classroom	60	All Departments	Projector, Whiteboard
+LAB-001	Computer Lab 1	Computer/Technical Lab	60	Science & Technology	60 Computers, Projector, Internet
+LAB-002	Computer Lab 2	Computer/Technical Lab	60	Science & Technology	60 Computers, Projector, Internet
+LAB-003	Computer Lab 3	Computer/Technical Lab	55	Science & Technology	55 Computers, Projector, Internet
+LAB-004	Computer Lab 4	Computer/Technical Lab	55	Science & Technology	55 Computers, Projector, Internet
+LAB-005	Networking Lab	Computer/Technical Lab	50	Science & Technology	Networking Equipment, Computers, Internet
+LAB-006	Project Lab	Computer/Technical Lab	50	Science & Technology	Computers, Projector, Development Equipment
+HALL-001	Seminar Hall 1	Seminar Hall	180	All Departments	Projector, Sound System, Microphones, Stage
+HALL-002	Seminar Hall 2	Seminar Hall	120	All Departments	Projector, Sound System, Microphones

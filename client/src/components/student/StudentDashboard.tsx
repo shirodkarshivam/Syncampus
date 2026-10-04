@@ -1,10 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Home, 
   Calendar, 
-  FileText, 
-  Megaphone, 
-  Bell, 
   User, 
   LogOut, 
   Menu, 
@@ -12,11 +9,7 @@ import {
   GraduationCap 
 } from 'lucide-react';
 import './StudentDashboard.css';
-import { 
-  INITIAL_EXAMINATIONS, 
-  INITIAL_ANNOUNCEMENTS 
-} from '../../data/mockData';
-import type { Lecture, Examination, Announcement } from '../../data/mockData';
+import type { Lecture } from '../../data/mockData';
 import { findStudentByQuery, STUDENTS_DATA } from '../../data/studentsData';
 import type { Student } from '../../data/studentsData';
 import { 
@@ -24,12 +17,10 @@ import {
   getSubjectsForStudent, 
   getAssignedTeachersForStudent 
 } from '../../data/timetableData';
+import { timetableStore, LectureChangeAlert } from '../../data/timetableStore';
 
 import { StudentHomeView } from './views/StudentHomeView';
 import { StudentTimetableView } from './views/StudentTimetableView';
-import { StudentExamsView } from './views/StudentExamsView';
-import { StudentAnnouncementsView } from './views/StudentAnnouncementsView';
-import { StudentUpdatesView } from './views/StudentUpdatesView';
 import { StudentProfileView } from './views/StudentProfileView';
 
 interface Props {
@@ -49,9 +40,22 @@ export const StudentDashboard: React.FC<Props> = ({
     return findStudentByQuery(studentEmail) || STUDENTS_DATA[0];
   }, [studentEmail]);
 
-  // Master conflict-free timetable for this student's exact division
-  const lectures: Lecture[] = useMemo(() => {
-    return getLecturesForStudent(activeStudent);
+  // Master conflict-free timetable for this student's exact division from timetableStore
+  const [lectures, setLectures] = useState<Lecture[]>(() => {
+    return timetableStore.getLecturesForStudent(activeStudent);
+  });
+  const [alerts, setAlerts] = useState<LectureChangeAlert[]>(() => {
+    return timetableStore.getAlertsForStudent(activeStudent);
+  });
+
+  useEffect(() => {
+    const update = () => {
+      setLectures(timetableStore.getLecturesForStudent(activeStudent));
+      setAlerts(timetableStore.getAlertsForStudent(activeStudent));
+    };
+    update();
+    const unsub = timetableStore.subscribe(update);
+    return unsub;
   }, [activeStudent]);
 
   // Registered curriculum subjects for this course & year
@@ -59,13 +63,21 @@ export const StudentDashboard: React.FC<Props> = ({
     return getSubjectsForStudent(activeStudent);
   }, [activeStudent]);
 
-  // Specific teachers assigned to teach this division's subjects
+  // Specific teachers assigned to teach this division's subjects (dynamically reflects any faculty changes)
   const assignedTeachers = useMemo(() => {
+    const map = new Map<string, { subject: string; teacherName: string; teacherId: string }>();
+    lectures.forEach(l => {
+      if (!map.has(l.subject)) {
+        map.set(l.subject, {
+          subject: l.subject,
+          teacherName: l.teacher,
+          teacherId: l.teacherId || ''
+        });
+      }
+    });
+    if (map.size > 0) return Array.from(map.values());
     return getAssignedTeachersForStudent(activeStudent);
-  }, [activeStudent]);
-
-  const exams: Examination[] = INITIAL_EXAMINATIONS;
-  const announcements: Announcement[] = INITIAL_ANNOUNCEMENTS;
+  }, [lectures, activeStudent]);
 
   // Academic day logic: if weekend (Sun/Sat), show Monday's upcoming schedule
   const defaultAcademicDay = useMemo(() => {
@@ -85,9 +97,6 @@ export const StudentDashboard: React.FC<Props> = ({
   const navItems = [
     { id: 'home', label: 'Home', icon: <Home size={18} /> },
     { id: 'timetable', label: 'Timetable', icon: <Calendar size={18} /> },
-    { id: 'exams', label: 'Exams', icon: <FileText size={18} /> },
-    { id: 'announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
-    { id: 'updates', label: 'Updates', icon: <Bell size={18} /> },
     { id: 'profile', label: 'Profile', icon: <User size={18} /> }
   ];
 
@@ -148,15 +157,6 @@ export const StudentDashboard: React.FC<Props> = ({
           </div>
 
           <div className="topbar-right">
-            <button 
-              className="icon-button" 
-              title="Notifications"
-              onClick={() => setActiveTab('updates')}
-            >
-              <Bell size={18} />
-              <span className="notification-badge-dot" style={{ backgroundColor: '#2563EB' }} />
-            </button>
-
             <div 
               className="student-profile-pill" 
               onClick={() => setActiveTab('profile')} 
@@ -178,8 +178,9 @@ export const StudentDashboard: React.FC<Props> = ({
             <StudentHomeView
               student={activeStudent}
               lectures={lectures}
+              alerts={alerts}
+              onDismissAlert={(id) => timetableStore.dismissAlert(id)}
               defaultDay={defaultAcademicDay}
-              announcements={announcements}
               onNavigate={(tab) => setActiveTab(tab)}
             />
           )}
@@ -189,18 +190,6 @@ export const StudentDashboard: React.FC<Props> = ({
               lectures={lectures} 
               student={activeStudent} 
             />
-          )}
-
-          {activeTab === 'exams' && (
-            <StudentExamsView exams={exams} />
-          )}
-
-          {activeTab === 'announcements' && (
-            <StudentAnnouncementsView announcements={announcements} />
-          )}
-
-          {activeTab === 'updates' && (
-            <StudentUpdatesView />
           )}
 
           {activeTab === 'profile' && (
@@ -214,9 +203,9 @@ export const StudentDashboard: React.FC<Props> = ({
           )}
         </div>
 
-        {/* Mobile Bottom Navigation (Section 10) */}
+        {/* Mobile Bottom Navigation */}
         <nav className="mobile-bottom-nav">
-          {navItems.slice(0, 4).map((item) => (
+          {navItems.map((item) => (
             <button
               key={item.id}
               className={`mobile-nav-btn ${activeTab === item.id ? 'active' : ''}`}
@@ -226,13 +215,6 @@ export const StudentDashboard: React.FC<Props> = ({
               <span>{item.label}</span>
             </button>
           ))}
-          <button
-            className={`mobile-nav-btn ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setActiveTab('profile')}
-          >
-            <User size={18} />
-            <span>Profile</span>
-          </button>
         </nav>
       </div>
     </div>

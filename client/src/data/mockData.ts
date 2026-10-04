@@ -49,6 +49,12 @@ export interface Lecture {
   status: 'Scheduled' | 'Rescheduled' | 'Cancelled';
   originalTime?: string;
   originalRoom?: string;
+  originalTeacher?: string;
+  year?: string;
+  divisionKey?: string;
+  teacherId?: string;
+  cancelReason?: string;
+  updatedAt?: string;
 }
 
 export interface Classroom {
@@ -59,6 +65,9 @@ export interface Classroom {
   type: 'Classroom' | 'Computer Lab' | 'Auditorium';
   status: 'Available' | 'Occupied' | 'Maintenance';
   currentLecture?: string;
+  code?: string;
+  departmentUse?: string;
+  facilities?: string;
 }
 
 export interface Examination {
@@ -98,7 +107,7 @@ export const COLLEGE_METRICS = {
   departments: 4,
   courses: 8,
   divisions: 51,
-  totalTeachers: 135,
+  totalTeachers: 72,
   generalClassrooms: 54,
   computerLabs: 6,
   seminarHalls: 2,
@@ -309,14 +318,739 @@ export const INITIAL_LECTURES: Lecture[] = [
 ];
 
 export const INITIAL_CLASSROOMS: Classroom[] = [
-  { id: 'c-101', name: 'Room 101', capacity: 60, floor: '1st Floor', type: 'Classroom', status: 'Available' },
-  { id: 'c-204', name: 'Room 204', capacity: 70, floor: '2nd Floor', type: 'Classroom', status: 'Occupied', currentLecture: 'DBMS (BSc IT Sem 3 Div A)' },
-  { id: 'c-lab1', name: 'Computer Lab 1', capacity: 40, floor: '3rd Floor', type: 'Computer Lab', status: 'Occupied', currentLecture: 'Programming in C (BSc IT FY Div A)' },
-  { id: 'c-lab2', name: 'Computer Lab 2', capacity: 40, floor: '3rd Floor', type: 'Computer Lab', status: 'Available' },
-  { id: 'c-302', name: 'Room 302', capacity: 65, floor: '3rd Floor', type: 'Classroom', status: 'Available' },
-  { id: 'c-305', name: 'Room 305', capacity: 65, floor: '3rd Floor', type: 'Classroom', status: 'Maintenance' },
-  { id: 'c-audi1', name: 'Seminar Hall 1', capacity: 250, floor: 'Ground Floor', type: 'Auditorium', status: 'Available' },
-  { id: 'c-audi2', name: 'Seminar Hall 2', capacity: 250, floor: 'Ground Floor', type: 'Auditorium', status: 'Available' }
+  {
+    "id": "room-001",
+    "code": "ROOM-001",
+    "name": "Room 101",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc IT FY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-002",
+    "code": "ROOM-002",
+    "name": "Room 102",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc IT FY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-003",
+    "code": "ROOM-003",
+    "name": "Room 103",
+    "capacity": 60,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc IT SY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-004",
+    "code": "ROOM-004",
+    "name": "Room 104",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc IT SY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-005",
+    "code": "ROOM-005",
+    "name": "Room 105",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc IT TY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-006",
+    "code": "ROOM-006",
+    "name": "Room 106",
+    "capacity": 60,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc IT TY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-007",
+    "code": "ROOM-007",
+    "name": "Room 107",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc CS FY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-008",
+    "code": "ROOM-008",
+    "name": "Room 108",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc CS FY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-009",
+    "code": "ROOM-009",
+    "name": "Room 109",
+    "capacity": 60,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc CS SY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-010",
+    "code": "ROOM-010",
+    "name": "Room 110",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc CS SY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-011",
+    "code": "ROOM-011",
+    "name": "Room 111",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc CS TY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-012",
+    "code": "ROOM-012",
+    "name": "Room 112",
+    "capacity": 60,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BSc CS TY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-013",
+    "code": "ROOM-013",
+    "name": "Room 113",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "B.Com FY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-014",
+    "code": "ROOM-014",
+    "name": "Room 114",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "B.Com FY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-015",
+    "code": "ROOM-015",
+    "name": "Room 115",
+    "capacity": 60,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "B.Com FY Div C",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-016",
+    "code": "ROOM-016",
+    "name": "Room 116",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "B.Com SY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-017",
+    "code": "ROOM-017",
+    "name": "Room 117",
+    "capacity": 55,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "B.Com SY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-018",
+    "code": "ROOM-018",
+    "name": "Room 118",
+    "capacity": 60,
+    "floor": "1st Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "B.Com SY Div C",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-019",
+    "code": "ROOM-019",
+    "name": "Room 119",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "B.Com TY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-020",
+    "code": "ROOM-020",
+    "name": "Room 120",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "B.Com TY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-021",
+    "code": "ROOM-021",
+    "name": "Room 121",
+    "capacity": 60,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "B.Com TY Div C",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-022",
+    "code": "ROOM-022",
+    "name": "Room 122",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BFM FY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-023",
+    "code": "ROOM-023",
+    "name": "Room 123",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BFM FY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-024",
+    "code": "ROOM-024",
+    "name": "Room 124",
+    "capacity": 60,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BFM SY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-025",
+    "code": "ROOM-025",
+    "name": "Room 125",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BFM SY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-026",
+    "code": "ROOM-026",
+    "name": "Room 126",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BFM TY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-027",
+    "code": "ROOM-027",
+    "name": "Room 127",
+    "capacity": 60,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BFM TY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-028",
+    "code": "ROOM-028",
+    "name": "Room 128",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBI FY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-029",
+    "code": "ROOM-029",
+    "name": "Room 129",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBI FY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-030",
+    "code": "ROOM-030",
+    "name": "Room 130",
+    "capacity": 60,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBI SY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-031",
+    "code": "ROOM-031",
+    "name": "Room 131",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBI SY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-032",
+    "code": "ROOM-032",
+    "name": "Room 132",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBI TY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-033",
+    "code": "ROOM-033",
+    "name": "Room 133",
+    "capacity": 60,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBI TY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-034",
+    "code": "ROOM-034",
+    "name": "Room 134",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BMS FY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-035",
+    "code": "ROOM-035",
+    "name": "Room 135",
+    "capacity": 55,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BMS FY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-036",
+    "code": "ROOM-036",
+    "name": "Room 136",
+    "capacity": 60,
+    "floor": "2nd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BMS SY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-037",
+    "code": "ROOM-037",
+    "name": "Room 137",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BMS SY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-038",
+    "code": "ROOM-038",
+    "name": "Room 138",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BMS TY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-039",
+    "code": "ROOM-039",
+    "name": "Room 139",
+    "capacity": 60,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BMS TY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-040",
+    "code": "ROOM-040",
+    "name": "Room 140",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BA FY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-041",
+    "code": "ROOM-041",
+    "name": "Room 141",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BA FY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-042",
+    "code": "ROOM-042",
+    "name": "Room 142",
+    "capacity": 60,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BA SY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-043",
+    "code": "ROOM-043",
+    "name": "Room 143",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BA SY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-044",
+    "code": "ROOM-044",
+    "name": "Room 144",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BA TY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-045",
+    "code": "ROOM-045",
+    "name": "Room 145",
+    "capacity": 60,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BA TY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-046",
+    "code": "ROOM-046",
+    "name": "Room 146",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBA FY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-047",
+    "code": "ROOM-047",
+    "name": "Room 147",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBA FY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-048",
+    "code": "ROOM-048",
+    "name": "Room 148",
+    "capacity": 60,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBA SY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-049",
+    "code": "ROOM-049",
+    "name": "Room 149",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBA SY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-050",
+    "code": "ROOM-050",
+    "name": "Room 150",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBA TY Div A",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-051",
+    "code": "ROOM-051",
+    "name": "Room 151",
+    "capacity": 60,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Occupied",
+    "currentLecture": "BBA TY Div B",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-052",
+    "code": "ROOM-052",
+    "name": "Room 152",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Available",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-053",
+    "code": "ROOM-053",
+    "name": "Room 153",
+    "capacity": 55,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Available",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "room-054",
+    "code": "ROOM-054",
+    "name": "Room 154",
+    "capacity": 60,
+    "floor": "3rd Floor",
+    "type": "Classroom",
+    "status": "Available",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Whiteboard"
+  },
+  {
+    "id": "lab-001",
+    "code": "LAB-001",
+    "name": "Computer Lab 1",
+    "capacity": 60,
+    "floor": "3rd Floor (Tech Wing)",
+    "type": "Computer Lab",
+    "status": "Available",
+    "departmentUse": "Science & Technology",
+    "facilities": "60 Computers, Projector, Internet"
+  },
+  {
+    "id": "lab-002",
+    "code": "LAB-002",
+    "name": "Computer Lab 2",
+    "capacity": 60,
+    "floor": "3rd Floor (Tech Wing)",
+    "type": "Computer Lab",
+    "status": "Available",
+    "departmentUse": "Science & Technology",
+    "facilities": "60 Computers, Projector, Internet"
+  },
+  {
+    "id": "lab-003",
+    "code": "LAB-003",
+    "name": "Computer Lab 3",
+    "capacity": 55,
+    "floor": "3rd Floor (Tech Wing)",
+    "type": "Computer Lab",
+    "status": "Available",
+    "departmentUse": "Science & Technology",
+    "facilities": "55 Computers, Projector, Internet"
+  },
+  {
+    "id": "lab-004",
+    "code": "LAB-004",
+    "name": "Computer Lab 4",
+    "capacity": 55,
+    "floor": "3rd Floor (Tech Wing)",
+    "type": "Computer Lab",
+    "status": "Available",
+    "departmentUse": "Science & Technology",
+    "facilities": "55 Computers, Projector, Internet"
+  },
+  {
+    "id": "lab-005",
+    "code": "LAB-005",
+    "name": "Networking Lab",
+    "capacity": 50,
+    "floor": "3rd Floor (Tech Wing)",
+    "type": "Computer Lab",
+    "status": "Available",
+    "departmentUse": "Science & Technology",
+    "facilities": "Networking Equipment, Computers, Internet"
+  },
+  {
+    "id": "lab-006",
+    "code": "LAB-006",
+    "name": "Project Lab",
+    "capacity": 50,
+    "floor": "3rd Floor (Tech Wing)",
+    "type": "Computer Lab",
+    "status": "Available",
+    "departmentUse": "Science & Technology",
+    "facilities": "Computers, Projector, Development Equipment"
+  },
+  {
+    "id": "hall-001",
+    "code": "HALL-001",
+    "name": "Seminar Hall 1",
+    "capacity": 180,
+    "floor": "Ground Floor (Central Wing)",
+    "type": "Auditorium",
+    "status": "Available",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Sound System, Microphones, Stage"
+  },
+  {
+    "id": "hall-002",
+    "code": "HALL-002",
+    "name": "Seminar Hall 2",
+    "capacity": 120,
+    "floor": "Ground Floor (Central Wing)",
+    "type": "Auditorium",
+    "status": "Available",
+    "departmentUse": "All Departments",
+    "facilities": "Projector, Sound System, Microphones"
+  }
 ];
 
 export const INITIAL_EXAMINATIONS: Examination[] = [

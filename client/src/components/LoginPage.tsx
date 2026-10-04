@@ -93,9 +93,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     { name: 'Prof. Neha Kulkarni', id: 'T004', email: 'neha.kulkarni.t004@campus.edu', dept: 'Science & Tech' },
     { name: 'Prof. Sneha Joshi', id: 'T002', email: 'sneha.joshi.t002@campus.edu', dept: 'Science & Tech' },
     { name: 'Prof. Amit Shah', id: 'T003', email: 'amit.shah.t003@campus.edu', dept: 'Science & Tech' },
-    { name: 'Prof. Rajesh Gupta', id: 'T061', email: 'rajesh.gupta.t061@campus.edu', dept: 'Commerce' },
-    { name: 'Prof. Pooja Shah', id: 'T101', email: 'pooja.shah.t101@campus.edu', dept: 'Management' },
-    { name: 'Prof. Ramesh Joshi', id: 'T121', email: 'ramesh.joshi.t121@campus.edu', dept: 'Arts' },
+    { name: 'Prof. Meera Kulkarni', id: 'T031', email: 'meera.kulkarni.t031@campus.edu', dept: 'Commerce' },
+    { name: 'Prof. Arjun Mehta', id: 'T056', email: 'arjun.mehta.t056@campus.edu', dept: 'Management' },
+    { name: 'Prof. Kavita Desai', id: 'T066', email: 'kavita.desai.t066@campus.edu', dept: 'Arts' },
   ];
 
   // Popular quick-pick students for fast access
@@ -598,7 +598,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                       className="faculty-browse-all-btn"
                       onClick={() => setShowFacultyModal(true)}
                     >
-                      Browse All 135 &rarr;
+                      Browse All {TEACHERS_DATA.length} &rarr;
                     </button>
                   </div>
                   <div className="faculty-chip-cloud">
@@ -788,7 +788,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <div>
                 <div className="faculty-directory-title">Official Faculty Directory</div>
                 <div className="faculty-directory-sub">
-                  Select any of the 135 college teachers to login dynamically
+                  Select any of the {TEACHERS_DATA.length} college teachers to login dynamically
                 </div>
               </div>
               <button 
