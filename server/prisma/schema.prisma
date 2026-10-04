@@ -1,0 +1,294 @@
+// SyncCampus Database Schema (PostgreSQL + Prisma)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum RoomType {
+  CLASSROOM
+  LAB
+  SEMINAR_HALL
+}
+
+enum LectureStatus {
+  SCHEDULED
+  RESCHEDULED
+  CANCELLED
+  ROOM_CHANGED
+  SUBSTITUTE
+}
+
+enum NotificationType {
+  CANCELLATION
+  RESCHEDULE
+  ROOM_CHANGE
+  TEACHER_CHANGE
+  ANNOUNCEMENT
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  identifier    String    @unique // e.g. S2024-IT-001, T001, ADMIN01
+  role          UserRole
+  passwordHash  String?   @map("password_hash") // Prepared for Part 2 auth
+  avatarUrl     String?   @map("avatar_url")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  student       Student?
+  teacher       Teacher?
+  notifications Notification[]
+  auditLogs     TimetableChange[]
+
+  @@map("users")
+}
+
+model Department {
+  id        String    @id @default(uuid())
+  code      String    @unique // SCI_TECH, COMMERCE, ARTS, MANAGEMENT
+  name      String    @unique // Science & Technology, Commerce, Arts, Management
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  courses   Course[]
+  teachers  Teacher[]
+
+  @@map("departments")
+}
+
+model Course {
+  id            String     @id @default(uuid())
+  code          String     @unique // BSC_IT, BSC_CS, BCOM, BBI, BFM, BMS, BA, BBA
+  name          String     // BSc IT, BSc CS, B.Com, BBI, BFM, BMS, BA, BBA
+  departmentId  String     @map("department_id")
+  durationYears Int        @default(3) @map("duration_years")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  department    Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  divisions     Division[]
+  subjects      Subject[]
+
+  @@index([departmentId])
+  @@map("courses")
+}
+
+model Room {
+  id              String         @id @default(uuid())
+  roomCode        String         @unique @map("room_code") // e.g. Room 101, LAB-001, HALL-001
+  roomName        String         @map("room_name") // Room 101, Computer Lab 1, Seminar Hall 1
+  roomType        RoomType       @map("room_type")
+  capacity        Int            @default(60)
+  building        String?
+  floor           String?
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  divisions       Division[]     @relation("AssignedRoom")
+  lectures        Lecture[]      @relation("ActiveRoom")
+  originalLectures Lecture[]     @relation("OriginalRoom")
+
+  @@map("rooms")
+}
+
+model Division {
+  id              String      @id @default(uuid())
+  courseId        String      @map("course_id")
+  academicYear    String      @map("academic_year") // FY, SY, TY
+  divisionName    String      @map("division_name") // A, B, C, D
+  fullName        String      @unique @map("full_name") // e.g. "BSc IT-FY-A" or "FY-A"
+  assignedRoomId  String?     @map("assigned_room_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  course          Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignedRoom    Room?       @relation("AssignedRoom", fields: [assignedRoomId], references: [id], onDelete: SetNull)
+  students        Student[]
+  lectures        Lecture[]
+  notifications   Notification[]
+
+  @@unique([courseId, academicYear, divisionName])
+  @@index([courseId])
+  @@map("divisions")
+}
+
+model Teacher {
+  id              String            @id @default(uuid())
+  userId          String            @unique @map("user_id")
+  teacherId       String            @unique @map("teacher_id") // T001 - T072
+  fullName        String            @map("full_name")
+  email           String            @unique
+  departmentId    String            @map("department_id")
+  specialization  String?
+  cabin           String?
+  contactNumber   String?           @map("contact_number")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department      Department        @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  subjects        TeacherSubject[]
+  lectures        Lecture[]         @relation("ActiveTeacher")
+  originalLectures Lecture[]        @relation("OriginalTeacher")
+
+  @@index([departmentId])
+  @@map("teachers")
+}
+
+model Student {
+  id                String       @id @default(uuid())
+  userId            String       @unique @map("user_id")
+  studentId         String       @unique @map("student_id") // S2024-IT-001 ...
+  fullName          String       @map("full_name")
+  email             String       @unique
+  divisionId        String       @map("division_id")
+  rollNumber        String?      @map("roll_number")
+  classroom         String?
+  practicalBatch    String?      @map("practical_batch") // A1, A2, B1, B2
+  contactNumber     String?      @map("contact_number")
+  emergencyContact  String?      @map("emergency_contact")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  division          Division     @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@index([divisionId])
+  @@map("students")
+}
+
+model Subject {
+  id            String           @id @default(uuid())
+  code          String           // Subject code (e.g. IT101 or unique string)
+  name          String           // Subject display name
+  courseId      String           @map("course_id")
+  academicYear  String?          @map("academic_year") // FY, SY, TY
+  isPractical   Boolean          @default(false) @map("is_practical")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  course        Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teachers      TeacherSubject[]
+  lectures      Lecture[]
+
+  @@unique([courseId, code, name])
+  @@index([courseId])
+  @@map("subjects")
+}
+
+model TeacherSubject {
+  id         String   @id @default(uuid())
+  teacherId  String   @map("teacher_id")
+  subjectId  String   @map("subject_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  teacher    Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId])
+  @@index([teacherId])
+  @@index([subjectId])
+  @@map("teacher_subjects")
+}
+
+model Lecture {
+  id                  String            @id @default(uuid())
+  divisionId          String            @map("division_id")
+  subjectId           String            @map("subject_id")
+  teacherId           String            @map("teacher_id")
+  roomId              String            @map("room_id")
+  dayOfWeek           Int               @map("day_of_week") // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri
+  dayName             String            @map("day_name") // Monday, Tuesday, ...
+  periodNumber        Int               @map("period_number") // 1 to 5
+  startTime           String            @map("start_time") // e.g. "09:00"
+  endTime             String            @map("end_time") // e.g. "10:00"
+  status              LectureStatus     @default(SCHEDULED)
+  originalTeacherId   String?           @map("original_teacher_id")
+  originalRoomId      String?           @map("original_room_id")
+  originalStartTime   String?           @map("original_start_time")
+  originalEndTime     String?           @map("original_end_time")
+  originalDay         String?           @map("original_day")
+  cancellationReason  String?           @map("cancellation_reason")
+  effectiveDate       String?           @map("effective_date")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  division            Division          @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  subject             Subject           @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher             Teacher           @relation("ActiveTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  room                Room              @relation("ActiveRoom", fields: [roomId], references: [id], onDelete: Restrict)
+  originalTeacher     Teacher?          @relation("OriginalTeacher", fields: [originalTeacherId], references: [id], onDelete: SetNull)
+  originalRoom        Room?             @relation("OriginalRoom", fields: [originalRoomId], references: [id], onDelete: SetNull)
+  notifications       Notification[]
+  auditLogs           TimetableChange[]
+
+  @@index([divisionId])
+  @@index([teacherId])
+  @@index([roomId])
+  @@index([dayOfWeek, periodNumber])
+  @@map("lectures")
+}
+
+model Notification {
+  id              String            @id @default(uuid())
+  recipientUserId String?           @map("recipient_user_id")
+  divisionId      String?           @map("division_id")
+  lectureId       String?           @map("lecture_id")
+  title           String
+  message         String
+  type            NotificationType
+  isRead          Boolean           @default(false) @map("is_read")
+  isDismissed     Boolean           @default(false) @map("is_dismissed")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  recipientUser   User?             @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  division        Division?         @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  lecture         Lecture?          @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@index([recipientUserId])
+  @@index([divisionId])
+  @@map("notifications")
+}
+
+model TimetableChange {
+  id              String    @id @default(uuid())
+  lectureId       String    @map("lecture_id")
+  changedByUserId String?   @map("changed_by_user_id")
+  changeType      String    @map("change_type") // CANCELLATION, RESCHEDULE, ROOM_CHANGE, TEACHER_CHANGE
+  oldValues       Json?     @map("old_values")
+  newValues       Json?     @map("new_values")
+  reason          String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  lecture         Lecture   @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  changedByUser   User?     @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([lectureId])
+  @@map("timetable_changes")
+}
