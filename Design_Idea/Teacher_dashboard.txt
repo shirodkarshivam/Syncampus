@@ -1,0 +1,517 @@
+# SyncCampus Teacher Dashboard
+
+Design the teacher dashboard for **SyncCampus** with the same visual language as the student dashboard: clean, minimal, refreshing, and extremely easy to use.
+
+The teacher should be able to open the dashboard and immediately see:
+
+1. What lecture they have now
+2. What lecture is next
+3. Their complete schedule
+4. Any schedule changes
+5. Simple controls to manage their lectures
+
+The interface should not feel like a complicated college ERP system.
+
+---
+
+# 1. Top Navigation
+
+At the top:
+
+**SyncCampus** on the left.
+
+On the right:
+
+**🔔 Notifications**
+
+**👤 Teacher Profile**
+
+Below the navigation:
+
+**Good morning, Prof. Sharma**
+
+**Department: Information Technology**
+
+Keep the department information small and subtle.
+
+---
+
+# 2. Today's Schedule
+
+The first major section should be:
+
+## Today's Schedule
+
+Show the teacher's current lecture in a highlighted card.
+
+### CURRENT LECTURE
+
+**Database Management System**
+
+10:00 AM – 11:00 AM
+
+🏫 Room 204
+
+👥 BSc IT • Semester 3 • Division A
+
+**● Ongoing**
+
+The teacher should immediately know which class they are supposed to take.
+
+---
+
+# 3. Quick Actions
+
+Below the current lecture, provide simple action buttons.
+
+**Cancel Lecture**
+
+**Reschedule**
+
+**Change Room**
+
+These should be clearly visible but not visually overwhelming.
+
+For example:
+
+```text
+┌────────────────────────────────────────────────────┐
+│ Database Management System                         │
+│ 10:00 AM – 11:00 AM | Room 204                   │
+│                                                    │
+│ [ Cancel ]  [ Reschedule ]  [ Change Room ]       │
+└────────────────────────────────────────────────────┘
+```
+
+---
+
+# 4. Next Lecture
+
+Show the next lecture separately.
+
+## Next Lecture
+
+**Web Development**
+
+11:00 AM – 12:00 PM
+
+🏫 Room 302
+
+👥 BSc IT • Semester 2 • Division B
+
+This should help the teacher prepare for their next class.
+
+---
+
+# 5. Today's Complete Timetable
+
+Below the current and next lecture:
+
+## Today's Timetable
+
+Display the teacher's entire schedule as a timeline.
+
+Example:
+
+**09:00 – 10:00**  
+Computer Networks  
+BSc IT • Sem 3 • Division A  
+Room 201
+
+**10:00 – 11:00**  
+Database Management System  
+BSc IT • Sem 3 • Division A  
+Room 204  
+**● Ongoing**
+
+**11:00 – 12:00**  
+Web Development  
+BSc IT • Sem 2 • Division B  
+Room 302
+
+**02:00 – 03:00**  
+Programming in Java  
+BSc IT • Sem 1 • Division A  
+Room 105
+
+---
+
+# 6. Lecture Management
+
+When the teacher clicks a lecture, open a simple lecture-management panel.
+
+Example:
+
+## Database Management System
+
+**Date:** 3 October 2026  
+**Time:** 10:00 AM – 11:00 AM  
+**Class:** BSc IT • Sem 3 • Division A  
+**Room:** 204
+
+Actions:
+
+### Cancel Lecture
+
+Ask for a reason:
+
+**Reason for cancellation**
+
+[ Enter reason ]
+
+**Confirm Cancellation**
+
+After confirmation, students affected by the cancellation automatically receive an update.
+
+---
+
+# 7. Reschedule Lecture
+
+When the teacher clicks **Reschedule**:
+
+Show:
+
+**Current**
+
+3 October  
+10:00 AM – 11:00 AM  
+Room 204
+
+**New Schedule**
+
+Date: [ Select date ]
+
+Time: [ Select time ]
+
+Room: [ Select room ]
+
+**Confirm Reschedule**
+
+Before final confirmation, show:
+
+> This change will update the timetable for the affected students.
+
+Then:
+
+**Confirm Change**
+
+---
+
+# 8. Change Classroom
+
+For a simple classroom change:
+
+**Current Room**
+
+Room 204
+
+**New Room**
+
+[ Select classroom ▼ ]
+
+**Confirm Change**
+
+After confirmation:
+
+Teacher sees:
+
+**Room changed successfully**
+
+Students see:
+
+🔔 **Classroom Changed**
+
+Database Management System
+
+**Room 204 → Room 305**
+
+---
+
+# 9. Weekly Schedule
+
+Add a separate section:
+
+## My Weekly Schedule
+
+Tabs:
+
+**Mon | Tue | Wed | Thu | Fri | Sat**
+
+Selecting a day displays the teacher's schedule for that day.
+
+The teacher should be able to quickly understand their weekly workload.
+
+---
+
+# 10. Schedule Changes
+
+Create a small section showing recent changes.
+
+## Recent Updates
+
+Example:
+
+**Room Changed**
+
+DBMS  
+Room 204 → Room 305
+
+**Today • 9:42 AM**
+
+---
+
+**Lecture Rescheduled**
+
+Web Development  
+11:00 AM → 2:00 PM
+
+**Yesterday**
+
+This gives teachers a quick history of changes.
+
+---
+
+# 11. Notifications
+
+The notification icon should show important information.
+
+Examples:
+
+🔔 **Lecture Reminder**
+
+Your DBMS lecture starts in 15 minutes.
+
+---
+
+🔔 **Schedule Updated**
+
+Your classroom for Web Development has been changed to Room 401.
+
+---
+
+🔔 **Admin Announcement**
+
+Semester 3 examination schedule has been published.
+
+---
+
+# 12. Teacher Profile
+
+The profile page should contain:
+
+**Prof. Rahul Sharma**
+
+Department: Information Technology
+
+Employee ID: T1024
+
+Email: teacher@college.edu
+
+Subjects:
+
+- Database Management System
+- Web Development
+
+Options:
+
+**Account Settings**
+
+**Notifications**
+
+**Help**
+
+**Logout**
+
+Teachers should not be able to change important official information such as department or employee ID themselves.
+
+---
+
+# 13. Teacher Permissions
+
+Teacher permissions should be limited to their assigned lectures.
+
+### Teacher can:
+
+✓ View their timetable  
+✓ View assigned classes  
+✓ View classrooms  
+✓ Cancel their lecture  
+✓ Reschedule their lecture  
+✓ Change classroom  
+✓ Receive notifications  
+✓ View announcements  
+
+### Teacher cannot:
+
+✕ Modify another teacher's timetable  
+✕ Modify official exam dates  
+✕ Create/delete student accounts  
+✕ Change college-wide settings  
+✕ Modify another department's schedule  
+
+Those controls belong to the **Admin**.
+
+---
+
+# 14. Confirmation Before Important Changes
+
+Do not allow important changes with one accidental click.
+
+For example, when the teacher clicks Cancel:
+
+**Cancel this lecture?**
+
+Database Management System  
+10:00 AM – 11:00 AM  
+Room 204
+
+This action will notify the affected students.
+
+**[Go Back] [Confirm Cancellation]**
+
+Use the same approach for rescheduling and room changes.
+
+---
+
+# 15. Automatic Synchronization
+
+This is the most important part of the teacher interface.
+
+Example:
+
+Teacher:
+
+**Change Room**
+
+204 → 305
+
+↓
+
+SyncCampus updates the central timetable
+
+↓
+
+Teacher sees:
+
+**Room 305**
+
+↓
+
+Affected students see:
+
+**🔔 Room Changed**
+
+DBMS will now be conducted in **Room 305**.
+
+The teacher should not have to separately inform every student.
+
+---
+
+# 16. Dashboard Navigation
+
+Keep navigation very small.
+
+### Desktop
+
+Sidebar:
+
+**Home**
+
+**My Timetable**
+
+**My Classes**
+
+**Updates**
+
+**Profile**
+
+### Mobile
+
+Bottom navigation:
+
+**Home | Timetable | Updates | Profile**
+
+The **Home** page remains the main dashboard.
+
+---
+
+# 17. Visual Design
+
+Keep exactly the same design language as the student dashboard.
+
+Use:
+
+- White cards
+- Light blue background
+- Blue primary actions
+- Rounded corners
+- Subtle shadows
+- Clean icons
+- Large readable text
+- Plenty of whitespace
+
+For teacher actions:
+
+**Blue:** normal actions  
+**Red:** cancellation  
+**Green:** successful update  
+**Neutral:** secondary actions
+
+Avoid making every button colorful.
+
+---
+
+# 18. Main Teacher Dashboard Structure
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│ SyncCampus                     🔔       👤 Prof. Sharma  │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│ Good morning, Prof. Sharma                              │
+│ Information Technology                                  │
+│                                                          │
+│ Today's Schedule                                        │
+│                                                          │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ CURRENT LECTURE                                      │ │
+│ │ Database Management System                           │ │
+│ │ 10:00 AM – 11:00 AM                                 │ │
+│ │ BSc IT • Sem 3 • Division A • Room 204             │ │
+│ │                                                      │ │
+│ │ [ Cancel ] [ Reschedule ] [ Change Room ]            │ │
+│ └──────────────────────────────────────────────────────┘ │
+│                                                          │
+│ Next Lecture                                             │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ Web Development                                      │ │
+│ │ 11:00 AM – 12:00 PM                                 │ │
+│ │ BSc IT • Sem 2 • Division B • Room 302              │ │
+│ └──────────────────────────────────────────────────────┘ │
+│                                                          │
+│ My Timetable                                            │
+│                                                          │
+│ 09:00 ─ Computer Networks ─ BSc IT ─ Room 201         │
+│ 10:00 ─ DBMS ────────────── BSc IT ─ Room 204 ● NOW   │
+│ 11:00 ─ Web Development ─── BSc IT ─ Room 302         │
+│ 02:00 ─ Java ─────────────── BSc IT ─ Room 105         │
+│                                                          │
+│ Recent Updates                                          │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ 🔔 Room changed: DBMS                               │ │
+│ │ Room 204 → Room 305                                 │ │
+│ └──────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────┘
+```
+
+# Core Principle
+
+The student dashboard answers:
+
+> **"What do I have?"**
+
+The teacher dashboard answers:
+
+> **"What do I have, and what do I need to manage?"**
+
+The teacher should be able to manage a lecture in **a few clicks**, while SyncCampus automatically communicates the change to every affected student.

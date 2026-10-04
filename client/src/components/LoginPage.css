@@ -1,0 +1,741 @@
+/* SyncCampus Login Page Styles */
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40px 24px 24px;
+}
+
+/* Header Section */
+.login-header {
+  text-align: center;
+  margin-top: 24px;
+  margin-bottom: 48px;
+}
+
+.brand-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.brand-logo-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.brand-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
+.brand-tagline {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: -0.01em;
+}
+
+/* Main Content Area */
+.login-main {
+  width: 100%;
+  max-width: 980px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+}
+
+/* Role Selection Grid */
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  width: 100%;
+  max-width: 940px;
+}
+
+/* Base Role Card */
+.role-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  box-shadow: var(--shadow-subtle);
+  padding: 40px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  min-height: 290px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.role-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Card Content Top */
+.card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+/* Icon Badges */
+.role-icon-box {
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s ease;
+}
+
+.role-card:hover .role-icon-box {
+  transform: scale(1.05);
+}
+
+/* Specific Role Theming */
+/* 1. Student (Blue) */
+.role-card.student:hover {
+  border-color: var(--student-border);
+}
+.role-icon-box.student {
+  background-color: var(--student-light);
+  color: var(--student-primary);
+  border: 1px solid var(--student-border);
+}
+
+/* 2. Teacher (Teal / Green) */
+.role-card.teacher:hover {
+  border-color: var(--teacher-border);
+}
+.role-icon-box.teacher {
+  background-color: var(--teacher-light);
+  color: var(--teacher-primary);
+  border: 1px solid var(--teacher-border);
+}
+
+/* 3. Admin (Purple) */
+.role-card.admin:hover {
+  border-color: var(--admin-border);
+}
+.role-icon-box.admin {
+  background-color: var(--admin-light);
+  color: var(--admin-primary);
+  border: 1px solid var(--admin-border);
+}
+
+/* Role Title */
+.role-title {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+/* Action Buttons */
+.role-button {
+  width: 100%;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  margin-top: 12px;
+}
+
+.role-button.student {
+  background-color: var(--student-primary);
+}
+.role-button.student:hover {
+  background-color: var(--student-hover);
+}
+
+.role-button.teacher {
+  background-color: var(--teacher-primary);
+}
+.role-button.teacher:hover {
+  background-color: var(--teacher-hover);
+}
+
+.role-button.admin {
+  background-color: var(--admin-primary);
+}
+.role-button.admin:hover {
+  background-color: var(--admin-hover);
+}
+
+/* Arrow inside button */
+.btn-arrow {
+  transition: transform 0.2s ease;
+}
+.role-card:hover .btn-arrow,
+.role-button:hover .btn-arrow {
+  transform: translateX(3px);
+}
+
+/* ========================================================
+   Interactive Email & OTP Form Cards
+   ======================================================== */
+.auth-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  box-shadow: var(--shadow-subtle);
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 440px;
+  position: relative;
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.back-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  margin-left: -10px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  transition: all 0.15s ease;
+}
+
+.back-nav-btn:hover {
+  color: var(--text-main);
+  background-color: #F1F5F9;
+}
+
+.form-header {
+  margin-bottom: 28px;
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.role-badge.student {
+  background-color: var(--student-light);
+  color: var(--student-primary);
+  border: 1px solid var(--student-border);
+}
+
+.role-badge.teacher {
+  background-color: var(--teacher-light);
+  color: var(--teacher-primary);
+  border: 1px solid var(--teacher-border);
+}
+
+.role-badge.admin {
+  background-color: var(--admin-light);
+  color: var(--admin-primary);
+  border: 1px solid var(--admin-border);
+}
+
+.form-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.form-subtext {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.form-subtext strong {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+/* Input Fields */
+.input-group {
+  margin-bottom: 24px;
+}
+
+.input-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.input-field-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.text-input {
+  width: 100%;
+  padding: 13px 14px 13px 44px;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  font-size: 15px;
+  color: var(--text-main);
+  background-color: #FFFFFF;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.text-input:focus {
+  border-color: var(--student-primary);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.role-card.teacher-flow .text-input:focus {
+  border-color: var(--teacher-primary);
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
+}
+
+.role-card.admin-flow .text-input:focus {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+}
+
+/* 6-Digit OTP Box Grid */
+.otp-inputs-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.otp-box {
+  width: 52px;
+  height: 56px;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-main);
+  background-color: #FFFFFF;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.otp-box:focus {
+  border-color: var(--student-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.auth-card.teacher .otp-box:focus {
+  border-color: var(--teacher-primary);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+
+.auth-card.admin .otp-box:focus {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+/* Secondary Actions */
+.form-footer-action {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.action-link {
+  color: var(--student-primary);
+  font-weight: 500;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.action-link:hover {
+  text-decoration: underline;
+}
+
+/* Footer Section */
+.login-footer {
+  text-align: center;
+  padding: 16px 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.footer-bullet {
+  margin: 0 8px;
+}
+
+/* Faculty Quick Select & Autocomplete Styles */
+.faculty-quick-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border-light);
+}
+
+.faculty-quick-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.faculty-quick-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.faculty-browse-all-btn {
+  background: none;
+  border: none;
+  color: #0D9488;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.faculty-browse-all-btn:hover {
+  text-decoration: underline;
+}
+
+.faculty-chip-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.faculty-pill-btn {
+  background: #F0FDFA;
+  border: 1px solid #CCFBF1;
+  color: #0F766E;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.faculty-pill-btn:hover {
+  background: #CCFBF1;
+  border-color: #0D9488;
+  transform: translateY(-1px);
+}
+
+.faculty-pill-btn.active {
+  background: #0D9488;
+  color: #FFFFFF;
+  border-color: #0F766E;
+}
+
+/* Matched Teacher Preview Card */
+.matched-teacher-banner {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.matched-teacher-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #DCFCE7;
+  color: #15803D;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.matched-teacher-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.matched-teacher-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #166534;
+  line-height: 1.2;
+}
+
+.matched-teacher-detail {
+  font-size: 11px;
+  color: #15803D;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Autocomplete suggestions dropdown */
+.teacher-suggestions-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  margin-top: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  padding: 4px;
+}
+
+.teacher-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+  border: none;
+  background: none;
+  width: 100%;
+}
+
+.teacher-suggestion-item:hover {
+  background: #F1F5F9;
+}
+
+.teacher-suggestion-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.teacher-suggestion-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Modal for 135 Faculty directory */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content-container {
+  background: #FFFFFF;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-light);
+  overflow: hidden;
+}
+
+.faculty-directory-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.faculty-directory-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.faculty-directory-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close-btn:hover {
+  background: #F1F5F9;
+  color: var(--text-main);
+}
+
+.faculty-modal-search-row {
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border-light);
+  background: #F8FAFC;
+}
+
+.faculty-dept-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border-light);
+  overflow-x: auto;
+}
+
+.faculty-dept-tab {
+  background: none;
+  border: 1px solid transparent;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.faculty-dept-tab.active {
+  background: #E2E8F0;
+  color: var(--text-main);
+}
+
+.faculty-modal-list {
+  padding: 12px 24px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.faculty-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  transition: all 0.15s ease;
+}
+
+.faculty-item-row:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 860px) {
+  .role-grid {
+    grid-template-columns: 1fr;
+    max-width: 360px;
+    gap: 20px;
+  }
+
+  .role-card {
+    min-height: auto;
+    padding: 32px 24px;
+  }
+
+  .brand-title {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-container {
+    padding: 24px 16px;
+  }
+
+  .auth-card {
+    padding: 28px 20px;
+  }
+
+  .otp-box {
+    width: 44px;
+    height: 50px;
+    font-size: 18px;
+  }
+}
+

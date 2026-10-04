@@ -1,0 +1,380 @@
+/* SyncCampus Student Dashboard Styles - Google Calendar + Google Pay Aesthetic */
+
+.student-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  font-family: var(--font-family);
+}
+
+/* Sidebar */
+.student-sidebar {
+  width: 250px;
+  background: #FFFFFF;
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 40;
+  transition: all 0.25s ease;
+}
+
+.sidebar-role-tag.student-tag {
+  background: var(--student-light);
+  color: var(--student-primary);
+  border: 1px solid var(--student-border);
+}
+
+.student-main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Profile Pill */
+.student-profile-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px 5px 6px;
+  border-radius: 24px;
+  background: #F8FAFC;
+  border: 1px solid var(--border-light);
+}
+
+.student-profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #DBEAFE;
+  color: #1D4ED8;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Main Content Area */
+.student-content-area {
+  padding: 32px;
+  flex: 1;
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Student Greeting */
+.student-greeting {
+  margin-bottom: 24px;
+}
+
+.student-cohort-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* Schedule Change Alert Banner (Section 6) */
+.schedule-alert-banner {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.alert-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert-banner-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #DBEAFE;
+  color: #1D4ED8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.alert-banner-text h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1E3A8A;
+  margin-bottom: 2px;
+}
+
+.alert-banner-text p {
+  font-size: 13px;
+  color: #1D4ED8;
+}
+
+.alert-action-btn {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1D4ED8;
+  background: #FFFFFF;
+  border: 1px solid #BFDBFE;
+  padding: 6px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.alert-action-btn:hover {
+  background: #F8FAFC;
+}
+
+/* Current Lecture Card (Section 3) */
+.student-current-hero {
+  background: #FFFFFF;
+  border: 1px solid var(--student-border);
+  border-radius: 20px;
+  padding: 28px 32px;
+  box-shadow: 0 4px 20px -2px rgba(37, 99, 235, 0.08);
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.student-current-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #2563EB, #3B82F6);
+}
+
+.student-hero-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.student-hero-tag {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--student-primary);
+}
+
+.student-hero-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+
+.student-hero-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.student-hero-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.student-hero-item strong {
+  color: var(--text-main);
+}
+
+/* Next Lecture Card (Section 4) */
+.student-next-card {
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 18px 24px;
+  box-shadow: var(--shadow-subtle);
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.student-next-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.student-next-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.student-next-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 12px;
+}
+
+/* Timeline Lectures (Section 5) */
+.timeline-card {
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  padding: 24px 28px;
+  box-shadow: var(--shadow-subtle);
+  margin-bottom: 32px;
+}
+
+.student-timeline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: #F8FAFC;
+  border: 1px solid #F1F5F9;
+  margin-bottom: 10px;
+  transition: all 0.15s ease;
+}
+
+.student-timeline-row.active-lecture {
+  background: #EFF6FF;
+  border-color: #BFDBFE;
+}
+
+.student-timeline-row.cancelled-lecture {
+  background: #FEF2F2;
+  border-color: #FECACA;
+}
+
+.cancelled-subject-name {
+  text-decoration: line-through;
+  color: #991B1B;
+}
+
+/* Section 9 Announcements Card */
+.student-announcements-card {
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  padding: 24px 28px;
+  box-shadow: var(--shadow-subtle);
+}
+
+.student-announcement-item {
+  padding: 14px 0;
+  border-bottom: 1px solid #F1F5F9;
+}
+.student-announcement-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.student-ann-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.student-ann-message {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.student-ann-footer {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+/* Mobile Bottom Navigation (Section 10) */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border-top: 1px solid var(--border-light);
+  padding: 8px 16px;
+  justify-content: space-around;
+  z-index: 50;
+  box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.mobile-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.mobile-nav-btn.active {
+  color: var(--student-primary);
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .student-sidebar {
+    position: fixed;
+    left: -250px;
+    top: 0;
+    bottom: 0;
+  }
+  .student-sidebar.open {
+    left: 0;
+  }
+  .student-content-area {
+    padding: 20px 16px 80px; /* Space for bottom bar */
+  }
+  .mobile-bottom-nav {
+    display: flex;
+  }
+  .student-hero-info-grid {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .student-timeline-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

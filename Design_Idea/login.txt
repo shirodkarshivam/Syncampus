@@ -1,0 +1,172 @@
+# SyncCampus Login Page
+
+Design a modern, minimal, refreshing login/role-selection page for **SyncCampus**, a college timetable and campus management system.
+
+The design should feel similar to **Google's clean UI and Google Pay's simplicity**. It should look professional and modern, but not overly corporate or flashy.
+
+## 1. Overall Style
+
+- Minimal and spacious layout
+- Clean white/light background
+- Soft blue as the primary color
+- Very subtle light-blue gradient or background shapes
+- Rounded corners
+- Soft shadows, not heavy shadows
+- Modern sans-serif typography
+- Plenty of whitespace
+- No unnecessary illustrations or decorative elements
+- No funky animations or excessive colors
+- The interface should feel refreshing and easy to understand at first glance
+
+## 2. Header
+
+At the top center:
+
+**SyncCampus**
+
+Use a simple education/campus-related logo beside or above the name.
+
+Below it, a very short tagline:
+
+**Everything about your campus, in sync.**
+
+Keep the tagline small and subtle.
+
+## 3. Login Options
+
+Place three equal-sized cards horizontally in the center of the page.
+
+### Card 1
+Icon: simple student/graduation-cap icon
+
+**Student Login**
+
+Button:
+**Continue →**
+
+Primary blue button.
+
+### Card 2
+Icon: simple teacher icon
+
+**Teacher Login**
+
+Button:
+**Continue →**
+
+Use a subtle complementary green/teal accent.
+
+### Card 3
+Icon: simple admin/settings icon
+
+**Admin Login**
+
+Button:
+**Continue →**
+
+Use a subtle purple accent.
+
+## Important
+
+Do NOT add any descriptive text below the titles.
+
+For example, do NOT write:
+
+"View your timetable, class updates and announcements."
+
+Only show:
+
+**[Icon]**
+
+**Student Login**
+
+**[Continue →]**
+
+The same structure should be used for Teacher and Admin.
+
+## 4. Card Design
+
+Each card should have:
+
+- White background
+- Approximately 16–20px border radius
+- Very subtle shadow
+- Thin or barely visible border
+- Equal width and height
+- Center-aligned content
+- Icon at the top
+- Role name below the icon
+- Continue button at the bottom
+
+The three cards should look like one unified system, not three completely different designs.
+
+## 5. Login Flow
+
+When the user clicks one of the three cards/buttons:
+
+Student Login → Student Email Login
+
+Teacher Login → Teacher Email Login
+
+Admin Login → Admin Email Login
+
+The next page should ask for:
+
+**Enter your registered email**
+
+[ Email input ]
+
+**Send OTP →**
+
+After clicking Send OTP:
+
+**Enter OTP**
+
+[ 6-digit OTP input ]
+
+**Verify & Continue →**
+
+Authentication should happen through email OTP. There should be no password field.
+
+## 6. UX Principles
+
+The user should understand the page within 2–3 seconds.
+
+Prioritize:
+
+- One-click navigation
+- Clear buttons
+- Minimal text
+- Large readable typography
+- Obvious role selection
+- Consistent spacing
+- Fast and simple interaction
+
+Avoid:
+
+- Large paragraphs
+- Excessive animations
+- Too many colors
+- Complicated navigation
+- Unnecessary images
+- Multiple buttons performing the same action
+- Over-designed/glassy/futuristic UI
+
+## 7. Responsive Design
+
+The page must work well on:
+
+- Desktop
+- Laptop
+- Tablet
+- Mobile
+
+On mobile, the three cards should stack vertically while maintaining the same visual style.
+
+## Visual Direction
+
+Think:
+
+**Google simplicity + Google Pay usability + modern college technology platform**
+
+The final result should look like a real product that a college could actually use, not like a flashy AI-generated concept.

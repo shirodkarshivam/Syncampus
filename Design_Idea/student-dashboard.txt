@@ -1,0 +1,524 @@
+# SyncCampus Student Dashboard
+
+Design the **student dashboard** for SyncCampus as a clean, minimal, easy-to-use campus timetable interface.
+
+The main goal is:
+
+> **A student should open the dashboard and understand their entire day within a few seconds.**
+
+The interface should feel similar to **Google Calendar + Google Pay**, with simple cards, clear information, and very little unnecessary content.
+
+---
+
+# 1. Overall Layout
+
+Use a clean light background with white cards.
+
+Primary theme:
+
+- White
+- Very light blue background
+- Blue as the main action color
+- Subtle green for positive/upcoming status
+- Red only for cancellations
+- Orange/yellow only for important warnings
+
+Avoid excessive colors.
+
+Use rounded cards with subtle shadows and plenty of whitespace.
+
+---
+
+# 2. Top Navigation Bar
+
+At the top:
+
+**SyncCampus** logo/name on the left.
+
+On the right:
+
+**🔔 Notifications**
+
+**Student Profile**
+
+The profile should show the student's name and a small profile icon.
+
+Example:
+
+**Hi, Shivam 👋**
+
+Below the navigation bar:
+
+**BSc IT • Semester 3 • Division A**
+
+Keep this information small and subtle.
+
+---
+
+# 3. Today's Main Card
+
+The first and most important section should show the student's current lecture.
+
+Heading:
+
+**Today's Schedule**
+
+Then a large highlighted card:
+
+### CURRENT LECTURE
+
+**Database Management System**
+
+10:00 AM – 11:00 AM
+
+👨‍🏫 Prof. Rahul Sharma
+
+🏫 Room 204
+
+Show a small status:
+
+**● Ongoing**
+
+The card should visually stand out from the rest of the page.
+
+If there is no ongoing lecture:
+
+**No lecture right now**
+
+Then show:
+
+**Next lecture at 11:00 AM**
+
+---
+
+# 4. Next Lecture
+
+Immediately below the current lecture, show the next class.
+
+### NEXT
+
+**Web Development**
+
+11:00 AM – 12:00 PM
+
+Room 302
+
+Prof. XYZ
+
+Use a smaller card than the current lecture card.
+
+This allows the student to quickly answer:
+
+> "Where do I have to go next?"
+
+---
+
+# 5. Today's Timetable
+
+Below the current/next lecture section:
+
+## Today's Timetable
+
+Display all lectures as simple timeline cards.
+
+Example:
+
+**09:00 AM – 10:00 AM**  
+Computer Networks  
+Room 201  
+Prof. ABC
+
+↓
+
+**10:00 AM – 11:00 AM**  
+Database Management System  
+Room 204  
+Prof. XYZ
+
+↓
+
+**11:00 AM – 12:00 PM**  
+Web Development  
+Room 302  
+Prof. ABC
+
+↓
+
+**12:00 PM – 01:00 PM**  
+Operating Systems  
+Room 205  
+Prof. DEF
+
+The current lecture should automatically be highlighted.
+
+---
+
+# 6. Schedule Changes
+
+This is one of the most important features of SyncCampus.
+
+If a teacher or admin changes something, show it clearly at the top.
+
+For example:
+
+### 🔔 Schedule Updated
+
+**Web Development**
+
+Today's lecture has been moved.
+
+**11:00 AM → 02:00 PM**
+
+Room:
+
+**302 → 401**
+
+Button:
+
+**View Update**
+
+The student should not have to manually refresh or check WhatsApp.
+
+The updated information should automatically appear.
+
+---
+
+# 7. Cancelled Lecture
+
+If a lecture is cancelled, the timetable card should clearly show it.
+
+Example:
+
+### CANCELLED
+
+~~Database Management System~~
+
+10:00 AM – 11:00 AM
+
+**Lecture cancelled by teacher**
+
+Use a subtle red indicator.
+
+Do not make the entire page red.
+
+---
+
+# 8. Weekly Timetable
+
+Add a simple section for the complete weekly timetable.
+
+At the top:
+
+**Weekly Schedule**
+
+Tabs:
+
+**Mon | Tue | Wed | Thu | Fri | Sat**
+
+When the student selects a day, show that day's timetable.
+
+Example:
+
+### Monday
+
+09:00 – 10:00  
+Computer Networks  
+Room 201
+
+10:00 – 11:00  
+DBMS  
+Room 204
+
+11:00 – 12:00  
+Web Development  
+Room 302
+
+Keep this very simple.
+
+---
+
+# 9. Important Announcements
+
+Add a small section below the timetable.
+
+## Announcements
+
+Example:
+
+**Internal Exam Timetable Released**
+
+Exam schedule for Semester 3 has been published.
+
+**Today • Admin**
+
+---
+
+Another example:
+
+**Tomorrow's lecture changed**
+
+Web Development will be conducted in Room 401.
+
+**Yesterday • Teacher**
+
+Only show the latest 2–3 announcements.
+
+Add:
+
+**View all →**
+
+---
+
+# 10. Bottom Navigation
+
+For desktop, use a simple sidebar or top navigation.
+
+For mobile, use a bottom navigation bar.
+
+Keep only the important sections:
+
+**Home**
+
+**Timetable**
+
+**Updates**
+
+**Profile**
+
+Do not create too many menu items.
+
+---
+
+# 11. Student Profile
+
+When the student opens Profile:
+
+**Student Name**
+
+Profile photo/icon
+
+**Student ID:** IT2026001  
+**Course:** BSc IT  
+**Semester:** 3  
+**Division:** A  
+**Email:** student@example.com
+
+Options:
+
+**Account Settings**
+
+**Notifications**
+
+**Help**
+
+**Logout**
+
+---
+
+# 12. Notification System
+
+The notification icon should show important changes.
+
+Examples:
+
+🔔 **Lecture Cancelled**
+
+DBMS lecture at 10:00 AM has been cancelled.
+
+---
+
+🔔 **Room Changed**
+
+Web Development has been moved from Room 302 to Room 401.
+
+---
+
+🔔 **Exam Schedule Updated**
+
+The Semester 3 examination timetable has been updated.
+
+Notifications should be short and actionable.
+
+---
+
+# 13. Automatic Sync
+
+This is the most important functionality of the student dashboard.
+
+The student should NEVER need to manually update their timetable.
+
+For example:
+
+Teacher changes:
+
+**Room 204 → Room 305**
+
+The student's dashboard automatically changes:
+
+**Room 305**
+
+And the student receives:
+
+**Room Changed**
+
+"DBMS will now be conducted in Room 305."
+
+Similarly:
+
+Teacher cancels lecture:
+
+**Teacher → Cancel Lecture**
+
+↓
+
+**SyncCampus System**
+
+↓
+
+**Student timetable updates**
+
+↓
+
+**Student receives notification**
+
+The same system should work for rescheduling, classroom changes, timetable changes, and exam updates.
+
+---
+
+# 14. Student Permissions
+
+The student is a **view-only user**.
+
+Students can:
+
+✓ View timetable  
+✓ View current lecture  
+✓ View upcoming lectures  
+✓ View classroom  
+✓ View teacher  
+✓ Receive notifications  
+✓ View announcements  
+✓ View exam timetable  
+✓ View schedule changes  
+
+Students cannot:
+
+✕ Edit timetable  
+✕ Cancel lectures  
+✕ Reschedule lectures  
+✕ Change classrooms  
+✕ Modify exam dates  
+
+Those controls belong to teachers/admins.
+
+---
+
+# 15. Empty States
+
+Do not leave blank spaces if there is no information.
+
+Example:
+
+No lectures today:
+
+**No classes today 🎉**
+
+Enjoy your day!
+
+No announcements:
+
+**No new announcements**
+
+You're all caught up.
+
+---
+
+# 16. Visual Style
+
+The dashboard should feel:
+
+**Simple  
+Clean  
+Refreshing  
+Fast  
+Organized  
+Student-friendly**
+
+Use:
+
+- Rounded cards
+- Soft shadows
+- Clean icons
+- Large readable headings
+- Blue primary buttons
+- Minimal animations
+- Plenty of whitespace
+
+Avoid:
+
+- Complex tables
+- Tiny text
+- Too many colors
+- Heavy gradients
+- Excessive animations
+- Crowded dashboards
+- Unnecessary statistics
+
+The student should not feel like they are using an old college ERP system.
+
+---
+
+# Main Dashboard Structure
+
+The final desktop layout should roughly follow:
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│ SyncCampus                         🔔     👤 Shivam      │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│ Hi, Shivam 👋                                            │
+│ BSc IT • Semester 3 • Division A                         │
+│                                                          │
+│ Today's Schedule                                         │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ CURRENT LECTURE                                      │ │
+│ │ Database Management System                           │ │
+│ │ 10:00 AM – 11:00 AM                                 │ │
+│ │ 👨‍🏫 Prof. XYZ       🏫 Room 204       ● Ongoing      │ │
+│ └──────────────────────────────────────────────────────┘ │
+│                                                          │
+│ Next Lecture                                             │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ Web Development                                      │ │
+│ │ 11:00 AM – 12:00 PM       Room 302                  │ │
+│ └──────────────────────────────────────────────────────┘ │
+│                                                          │
+│ Today's Timetable                                       │
+│                                                          │
+│ 09:00 ─ Computer Networks ─ Room 201                  │
+│ 10:00 ─ DBMS ────────────── Room 204  ● NOW           │
+│ 11:00 ─ Web Development ─── Room 302                  │
+│ 12:00 ─ Operating Systems ─ Room 205                  │
+│                                                          │
+│ Schedule Updates                                        │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ 🔔 Web Development room changed                      │ │
+│ │ Room 302 → Room 401                    View Update → │ │
+│ └──────────────────────────────────────────────────────┘ │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+## Core principle
+
+**Don't make the student search for information.**
+
+When they open SyncCampus, the first screen should immediately answer:
+
+1. **What class do I have now?**
+2. **Where is it?**
+3. **What is my next class?**
+4. **Did anything change today?**
+
+Everything else should be secondary.

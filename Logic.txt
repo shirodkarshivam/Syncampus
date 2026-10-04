@@ -1,0 +1,2135 @@
+# SyncCampus
+## Complete Website Logic & Functional Specification
+
+---
+
+# 1. What SyncCampus Is
+
+SyncCampus is a centralized college management platform that keeps **students, teachers, administrators, classrooms, lectures, timetables, examinations, and announcements synchronized in one system**.
+
+The main problem it solves is information fragmentation.
+
+Today, a timetable change might be communicated through:
+
+- WhatsApp groups
+- Verbal communication
+- Notice boards
+- Class representatives
+- Teacher messages
+- Separate PDFs
+- College announcements
+
+This can cause confusion.
+
+SyncCampus creates one central source of information.
+
+### Core principle
+
+> **One change in the system should automatically reach every person affected by that change.**
+
+For example:
+
+```text
+Teacher changes classroom
+        ↓
+SyncCampus validates the change
+        ↓
+Central timetable is updated
+        ↓
+Student timetable updates
+        ↓
+Affected students receive notification
+        ↓
+Admin can see the activity
+```
+
+---
+
+# 2. Three Types of Users
+
+SyncCampus has three primary roles:
+
+```text
+                    SYNC CAMPUS
+                         │
+                  Email + OTP Login
+                         │
+          ┌──────────────┼──────────────┐
+          ↓              ↓              ↓
+       STUDENT         TEACHER         ADMIN
+          │              │              │
+        VIEW        VIEW + MANAGE    FULL CONTROL
+```
+
+Each account has a specific role.
+
+## Student
+
+Students primarily consume information.
+
+They can:
+
+- View their timetable
+- View today's classes
+- View upcoming classes
+- View classrooms
+- View teachers
+- Receive notifications
+- View announcements
+- View examination schedules
+- View timetable changes
+
+They cannot modify official academic information.
+
+---
+
+## Teacher
+
+Teachers can view their assigned timetable and manage lectures assigned to them.
+
+They can:
+
+- View their timetable
+- Cancel their lecture
+- Request or perform permitted rescheduling
+- Change classroom where permitted
+- View assigned classes
+- Receive notifications
+- View announcements
+
+They cannot modify another teacher's lectures or system-wide academic information.
+
+---
+
+## Admin
+
+Admin has complete control.
+
+Admin can:
+
+- Manage students
+- Manage teachers
+- Manage classrooms
+- Manage departments
+- Create timetables
+- Edit timetables
+- Reschedule lectures
+- Cancel lectures
+- Assign teachers
+- Assign classrooms
+- Manage examinations
+- Publish announcements
+- Manage user accounts
+- View system activity
+- Resolve conflicts
+
+---
+
+# 3. Authentication Logic
+
+SyncCampus should use **email OTP authentication** rather than traditional passwords.
+
+## Login Flow
+
+The first page displays:
+
+**Student Login**
+
+**Teacher Login**
+
+**Admin Login**
+
+The user selects their role.
+
+Then:
+
+```text
+Select Role
+     ↓
+Enter Email
+     ↓
+System checks account
+     ↓
+OTP generated
+     ↓
+OTP sent to registered email
+     ↓
+User enters OTP
+     ↓
+OTP verified
+     ↓
+Role verified
+     ↓
+Dashboard opened
+```
+
+---
+
+# 4. Email Verification Rules
+
+The system should not allow anyone to select a role and access that role's dashboard simply by entering an email.
+
+The account must already exist and have a defined role.
+
+Example:
+
+```text
+student@gmail.com
+Role = Student
+```
+
+If that person selects **Admin Login**, the system should not give them admin access.
+
+Instead:
+
+> This account is registered as a Student account.
+
+The user should be redirected to the correct login flow.
+
+---
+
+# 5. OTP Logic
+
+When an OTP is requested:
+
+- Generate a temporary OTP
+- Send it to the registered email
+- Set an expiry time
+- Allow limited verification attempts
+- Invalidate the OTP after successful verification
+- Invalidate the previous OTP when a new OTP is generated
+
+Example:
+
+```text
+OTP: 482931
+Valid for: 5 minutes
+Attempts: Limited
+```
+
+If the OTP expires:
+
+> OTP expired. Please request a new OTP.
+
+If the user enters an incorrect OTP:
+
+> Incorrect OTP. Please try again.
+
+Repeated failed attempts should temporarily block further attempts to protect the account.
+
+---
+
+# 6. Dashboard Selection
+
+After successful authentication:
+
+```text
+Student → Student Dashboard
+
+Teacher → Teacher Dashboard
+
+Admin → Admin Dashboard
+```
+
+The dashboard should be generated according to the user's role and assigned data.
+
+A student should never receive teacher/admin controls simply by manipulating the URL or frontend.
+
+Permissions must be enforced by the system itself.
+
+---
+
+# 7. Central Data Structure
+
+The most important concept is that SyncCampus should have a **central source of truth**.
+
+The timetable should not exist separately for students and teachers.
+
+There should be one official lecture record.
+
+For example:
+
+```text
+Lecture ID: LECTURE_1042
+
+Subject:
+Database Management System
+
+Teacher:
+Prof. Rahul Sharma
+
+Course:
+BSc IT
+
+Semester:
+3
+
+Division:
+A
+
+Date:
+Monday
+
+Start:
+10:00 AM
+
+End:
+11:00 AM
+
+Room:
+204
+
+Status:
+Scheduled
+```
+
+The student and teacher dashboards simply display the relevant information from this central record.
+
+---
+
+# 8. Why a Central Timetable Is Important
+
+Do NOT create:
+
+```text
+Student Timetable
+Teacher Timetable
+Admin Timetable
+```
+
+as completely separate information.
+
+Instead:
+
+```text
+                 CENTRAL LECTURE
+                       │
+          ┌────────────┼────────────┐
+          ↓            ↓            ↓
+       Student       Teacher       Admin
+       View          View          Manage
+```
+
+This prevents inconsistent information.
+
+If the room changes from 204 to 305, everyone reads the same updated lecture record.
+
+---
+
+# 9. Academic Structure
+
+The system should understand the college hierarchy.
+
+Example:
+
+```text
+College
+│
+├── Department
+│   └── Information Technology
+│
+├── Course
+│   └── BSc IT
+│
+├── Semester
+│   └── Semester 3
+│
+├── Division
+│   └── Division A
+│
+├── Students
+│
+├── Teachers
+│
+└── Classrooms
+```
+
+This allows the admin to target information correctly.
+
+For example:
+
+> Send announcement to BSc IT → Semester 3 → Division A.
+
+Only those students should receive it.
+
+---
+
+# 10. Student Data Logic
+
+Every student account should have information such as:
+
+```text
+Student ID
+Name
+Email
+Department
+Course
+Semester
+Division
+Academic Year
+Status
+```
+
+Example:
+
+```text
+Student ID: IT2026001
+Name: Shivam
+Course: BSc IT
+Semester: 3
+Division: A
+Status: Active
+```
+
+The student's timetable is generated based on their academic assignment.
+
+The student should not manually select their timetable.
+
+---
+
+# 11. Teacher Data Logic
+
+Teacher records should contain:
+
+```text
+Teacher ID
+Name
+Email
+Department
+Subjects
+Assigned Classes
+Status
+```
+
+Example:
+
+```text
+Teacher ID: T1024
+Name: Prof. Rahul Sharma
+Department: IT
+Subjects:
+- DBMS
+- Java
+```
+
+Their dashboard automatically displays the lectures assigned to them.
+
+---
+
+# 12. Classroom Data Logic
+
+Every classroom should have:
+
+```text
+Room ID
+Room Name
+Building
+Capacity
+Type
+Availability Status
+```
+
+Example:
+
+```text
+Room: 204
+Capacity: 70
+Type: Classroom
+Status: Available
+```
+
+Computer labs can also be represented:
+
+```text
+Computer Lab 1
+Capacity: 40
+Type: Laboratory
+```
+
+---
+
+# 13. Lecture Creation Logic
+
+When an admin creates a lecture, the system should collect:
+
+```text
+Subject
+Teacher
+Course
+Semester
+Division
+Date
+Start Time
+End Time
+Classroom
+```
+
+Before creating the lecture, the system should check for conflicts.
+
+---
+
+# 14. Timetable Conflict Detection
+
+This is one of the most important backend rules.
+
+A lecture should not be created if it creates a conflict.
+
+The system should check at least four things.
+
+## Conflict 1: Teacher Conflict
+
+Example:
+
+Prof. Rahul Sharma already has:
+
+10:00–11:00 → DBMS
+
+Admin tries to assign:
+
+10:00–11:00 → Java
+
+Result:
+
+> ⚠️ Teacher Conflict  
+> Prof. Rahul Sharma is already assigned to another lecture during this time.
+
+---
+
+## Conflict 2: Classroom Conflict
+
+Room 204 is already occupied:
+
+10:00–11:00 → Web Development
+
+Admin tries:
+
+10:00–11:00 → DBMS → Room 204
+
+Result:
+
+> ⚠️ Classroom Conflict  
+> Room 204 is already occupied during this time.
+
+---
+
+## Conflict 3: Division Conflict
+
+BSc IT Semester 3 Division A already has:
+
+10:00–11:00 → DBMS
+
+Admin tries to schedule another lecture for the same division:
+
+10:00–11:00 → Java
+
+Result:
+
+> ⚠️ Division Conflict  
+> This class already has a lecture during this time.
+
+---
+
+## Conflict 4: Exam Conflict
+
+If an examination is scheduled in Room 204:
+
+10:00–1:00
+
+The system should not allow a regular lecture to use that room during the same period.
+
+---
+
+# 15. Lecture Status
+
+Every lecture should have a status.
+
+Possible statuses:
+
+```text
+Scheduled
+Ongoing
+Completed
+Cancelled
+Rescheduled
+```
+
+The system can automatically determine some statuses based on date/time.
+
+Example:
+
+Before lecture:
+
+**Scheduled**
+
+During lecture:
+
+**Ongoing**
+
+After lecture:
+
+**Completed**
+
+If cancelled:
+
+**Cancelled**
+
+---
+
+# 16. Student Dashboard Logic
+
+When a student logs in:
+
+The system identifies:
+
+```text
+Student
+↓
+Course
+↓
+Semester
+↓
+Division
+↓
+Today's lectures
+```
+
+Then the dashboard displays only lectures relevant to that student.
+
+For example:
+
+```text
+Student:
+BSc IT
+Semester 3
+Division A
+```
+
+The system fetches:
+
+```text
+All lectures
+      ↓
+Filter Course = BSc IT
+      ↓
+Filter Semester = 3
+      ↓
+Filter Division = A
+      ↓
+Filter Today's Date
+      ↓
+Display timetable
+```
+
+---
+
+# 17. Teacher Dashboard Logic
+
+When a teacher logs in:
+
+```text
+Teacher ID
+↓
+Find assigned lectures
+↓
+Filter today's date
+↓
+Display today's schedule
+```
+
+The teacher should only see lectures assigned to them.
+
+---
+
+# 18. Admin Dashboard Logic
+
+Admin does not need filtering to their own schedule.
+
+Admin can access the entire campus dataset.
+
+They can filter by:
+
+- Department
+- Course
+- Semester
+- Division
+- Teacher
+- Classroom
+- Date
+
+---
+
+# 19. Today's Schedule
+
+The dashboard should automatically determine the current date.
+
+For students:
+
+```text
+Current date
+↓
+Find student's lectures today
+↓
+Sort by start time
+↓
+Display
+```
+
+For teachers:
+
+```text
+Current date
+↓
+Find teacher's lectures today
+↓
+Sort by start time
+↓
+Display
+```
+
+For admin:
+
+```text
+Current date
+↓
+Find all campus lectures
+↓
+Show campus-level overview
+```
+
+---
+
+# 20. Current Lecture Logic
+
+The system should compare the current time with lecture start/end time.
+
+Example:
+
+Lecture:
+
+10:00–11:00
+
+At 10:30:
+
+```text
+Current time > 10:00
+AND
+Current time < 11:00
+```
+
+Therefore:
+
+**Ongoing**
+
+At 11:05:
+
+**Completed**
+
+This status can be shown automatically.
+
+---
+
+# 21. Next Lecture Logic
+
+The system should find the next lecture after the current time.
+
+Example:
+
+Current time:
+
+10:30 AM
+
+Lectures:
+
+9–10 → Completed
+
+10–11 → Ongoing
+
+11–12 → Next
+
+12–1 → Later
+
+The dashboard should display:
+
+> **Next Lecture: Web Development, 11:00 AM, Room 302**
+
+---
+
+# 22. Teacher Cancels a Lecture
+
+Scenario:
+
+Teacher has DBMS:
+
+10:00–11:00  
+Room 204
+
+Teacher clicks:
+
+**Cancel Lecture**
+
+The system should ask for confirmation.
+
+```text
+Cancel this lecture?
+
+DBMS
+10:00–11:00
+BSc IT • Semester 3 • Division A
+
+Reason:
+[________________]
+
+[Cancel] [Confirm Cancellation]
+```
+
+After confirmation:
+
+```text
+Lecture status
+Scheduled → Cancelled
+```
+
+The system then identifies everyone affected.
+
+Affected users:
+
+- Students in that division
+- Teacher
+- Admin activity log
+
+Students receive a notification.
+
+---
+
+# 23. Cancellation Notification
+
+Students see:
+
+> 🔔 **Lecture Cancelled**
+>
+> DBMS  
+> 10:00–11:00  
+> Room 204
+>
+> This lecture has been cancelled.
+
+If a reason was provided:
+
+> Reason: Faculty unavailable.
+
+The cancelled lecture should remain visible in the timetable but clearly marked as cancelled.
+
+Do not simply delete it.
+
+This preserves information and prevents confusion.
+
+---
+
+# 24. Teacher Reschedules a Lecture
+
+Teacher selects:
+
+**Reschedule**
+
+Current:
+
+```text
+Monday
+10:00–11:00
+Room 204
+```
+
+Teacher selects:
+
+```text
+Tuesday
+2:00–3:00
+Room 305
+```
+
+Before confirmation, SyncCampus checks:
+
+- Teacher availability
+- Classroom availability
+- Division availability
+- Existing timetable conflicts
+
+If no conflict:
+
+> Reschedule successfully.
+
+If there is a conflict:
+
+> ⚠️ This time conflicts with another lecture.
+
+The system should not save the conflicting change.
+
+---
+
+# 25. Teacher Classroom Change
+
+Teacher clicks:
+
+**Change Room**
+
+Current:
+
+**Room 204**
+
+Available rooms are displayed.
+
+Example:
+
+```text
+Room 201
+Available
+
+Room 305
+Available
+
+Room 306
+Occupied
+```
+
+The teacher can select an available room.
+
+After confirmation:
+
+```text
+204 → 305
+```
+
+The central lecture record updates.
+
+Affected students automatically see:
+
+> DBMS  
+> Room 204 → Room 305
+
+---
+
+# 26. Teacher Permissions and Approval
+
+A practical rule should be used for teacher changes.
+
+Teachers can directly make changes to their assigned lectures **only where the college permits it**.
+
+For more sensitive changes, such as moving a lecture to another day or making a change that affects another timetable, the system can use:
+
+```text
+Teacher submits change
+        ↓
+Admin reviews
+        ↓
+Approve / Reject
+```
+
+If approved:
+
+```text
+Central timetable updates
+↓
+Students notified
+```
+
+If rejected:
+
+```text
+Teacher receives:
+"Your schedule change request was rejected."
+```
+
+This gives the college flexibility in how strict its approval process is.
+
+---
+
+# 27. Admin Timetable Change
+
+Admin can directly change any timetable.
+
+Example:
+
+```text
+DBMS
+Monday
+10:00–11:00
+Room 204
+
+↓ Admin changes
+
+Tuesday
+2:00–3:00
+Room 305
+```
+
+Before saving:
+
+```text
+Check conflicts
+↓
+Show affected users
+↓
+Confirm
+↓
+Update timetable
+↓
+Notify affected users
+```
+
+---
+
+# 28. Showing Affected Users
+
+For major admin changes, show:
+
+> **This change will affect 72 students and 1 teacher.**
+
+Then:
+
+**[Cancel] [Confirm Change]**
+
+This is important because admin actions can affect large numbers of people.
+
+---
+
+# 29. Automatic Notification Logic
+
+Notifications should be event-based.
+
+The system should generate a notification when an important event happens.
+
+Examples:
+
+```text
+Lecture cancelled
+        ↓
+Notification
+
+Room changed
+        ↓
+Notification
+
+Lecture rescheduled
+        ↓
+Notification
+
+Exam timetable published
+        ↓
+Notification
+
+Announcement published
+        ↓
+Notification
+```
+
+Do not send unnecessary notifications for every small system action.
+
+---
+
+# 30. Notification Recipients
+
+The system should determine recipients automatically.
+
+### Lecture changed
+
+Send to:
+
+- Affected students
+- Assigned teacher
+
+### Exam changed
+
+Send to:
+
+- Affected students
+- Relevant teachers
+- Admin activity log
+
+### College-wide announcement
+
+Send to:
+
+- All relevant users
+
+### Department announcement
+
+Send only to:
+
+- Students in that department
+- Relevant teachers
+
+---
+
+# 31. Notification Priority
+
+Notifications can have priorities.
+
+### Normal
+
+Example:
+
+> New announcement published.
+
+### Important
+
+Example:
+
+> Classroom changed.
+
+### Critical
+
+Example:
+
+> Examination schedule changed.
+
+The UI can visually distinguish them without using excessive colors.
+
+---
+
+# 32. Announcement Logic
+
+Admin creates:
+
+```text
+Title
+Message
+Audience
+Publish Time
+```
+
+Audience options:
+
+```text
+Entire College
+Department
+Course
+Semester
+Division
+```
+
+Example:
+
+```text
+Audience:
+BSc IT → Semester 3 → Division A
+```
+
+Only matching students should receive the announcement.
+
+---
+
+# 33. Examination Logic
+
+Admin creates an exam:
+
+```text
+Subject
+Course
+Semester
+Division
+Date
+Start Time
+End Time
+Room
+```
+
+Before publishing:
+
+```text
+Check room conflict
+Check student schedule conflict
+Check other examination conflict
+```
+
+Then:
+
+**Publish Examination**
+
+Students receive the updated examination schedule.
+
+---
+
+# 34. Exam Timetable Changes
+
+If an exam changes:
+
+```text
+Old:
+12 October
+10:00 AM
+Room 204
+
+New:
+15 October
+2:00 PM
+Room 305
+```
+
+The system should:
+
+1. Update the official exam record
+2. Record the old information
+3. Notify affected students
+4. Notify relevant teachers
+5. Record the change in admin activity
+
+Students should clearly see:
+
+> **Exam Schedule Updated**
+
+---
+
+# 35. Classroom Availability
+
+Every room should have availability.
+
+Example:
+
+```text
+Room 204
+Available
+
+Room 305
+Occupied
+
+Lab 1
+Maintenance
+```
+
+If a room is marked unavailable:
+
+The system should prevent new lectures from being assigned to it.
+
+---
+
+# 36. Classroom Conflict Scenario
+
+Suppose:
+
+Room 204 is occupied from 10–11.
+
+Admin tries to assign another lecture to Room 204 from 10–11.
+
+System:
+
+> ⚠️ Room unavailable during this time.
+
+Offer:
+
+**Choose another room**
+
+or
+
+**Change lecture time**
+
+Do not allow the conflict silently.
+
+---
+
+# 37. Teacher Conflict Scenario
+
+Teacher has:
+
+10–11 → DBMS
+
+Admin tries:
+
+10–11 → Java
+
+System:
+
+> ⚠️ Teacher already has a lecture during this time.
+
+Admin must change the teacher or time.
+
+---
+
+# 38. Division Conflict Scenario
+
+Division A has:
+
+10–11 → DBMS
+
+Admin tries:
+
+10–11 → Java
+
+System:
+
+> ⚠️ Division A already has a lecture during this time.
+
+This prevents students from being assigned two classes simultaneously.
+
+---
+
+# 39. Empty Timetable Scenario
+
+If a student has no lecture today:
+
+Show:
+
+> **No classes today 🎉**
+
+Do not show an empty timetable.
+
+If a teacher has no lecture:
+
+> **You have no lectures scheduled today.**
+
+---
+
+# 40. No Internet / Temporary Connection Issue
+
+The interface should handle temporary network failures gracefully.
+
+If a user performs an action while the connection fails:
+
+> Unable to save changes. Please check your connection and try again.
+
+Do not show:
+
+> "Success"
+
+until the server confirms that the change was actually saved.
+
+This is especially important for timetable changes.
+
+---
+
+# 41. Double-Click / Duplicate Action Protection
+
+Suppose an admin clicks:
+
+**Create Lecture**
+
+twice quickly.
+
+The system should not create two identical lectures.
+
+After the first request is submitted:
+
+**Creating lecture...**
+
+Disable the button temporarily until the operation completes.
+
+The same applies to:
+
+- Cancel
+- Reschedule
+- Change room
+- Publish announcement
+- Publish exam
+
+---
+
+# 42. Two Admins Editing the Same Lecture
+
+Scenario:
+
+Admin A opens DBMS.
+
+Admin B also opens DBMS.
+
+Admin A changes room:
+
+204 → 305
+
+Admin B then tries to change:
+
+204 → 306
+
+The system should detect that the lecture has changed since Admin B opened it.
+
+Show:
+
+> This lecture was updated by another administrator. Please refresh and review the latest information.
+
+This prevents one admin from accidentally overwriting another admin's changes.
+
+---
+
+# 43. Teacher and Admin Editing at the Same Time
+
+Scenario:
+
+Teacher requests:
+
+DBMS → 2 PM
+
+At the same time, Admin changes DBMS → 3 PM.
+
+The system should use a controlled update process.
+
+The admin's latest authorized decision should determine the final official timetable, while the teacher should receive an update if their requested change was overridden.
+
+---
+
+# 44. Audit Log
+
+Every important administrative action should be recorded.
+
+Example:
+
+```text
+03 Oct 2026 • 10:42 AM
+
+Prof. Rahul Sharma
+Changed DBMS room
+Room 204 → Room 305
+```
+
+Another:
+
+```text
+03 Oct 2026 • 11:15 AM
+
+Admin
+Rescheduled Web Development
+11:00 AM → 2:00 PM
+```
+
+The audit log helps answer:
+
+> Who changed this information?
+
+> What was changed?
+
+> When was it changed?
+
+---
+
+# 45. Data History
+
+Important changes should not completely erase the old information.
+
+Example:
+
+```text
+Original:
+Room 204
+
+Changed to:
+Room 305
+
+Changed by:
+Prof. Rahul Sharma
+
+Date:
+03 Oct 2026
+```
+
+This is useful when there is confusion about previous information.
+
+---
+
+# 46. Search Logic
+
+Admin should be able to search:
+
+- Student name
+- Student ID
+- Teacher name
+- Teacher ID
+- Subject
+- Classroom
+- Course
+- Division
+
+Search should provide results quickly.
+
+Example:
+
+Search:
+
+**Shivam**
+
+Result:
+
+```text
+Shivam Shirodkar
+BSc IT
+Semester 3
+Division A
+```
+
+---
+
+# 47. Role-Based Security
+
+The system must enforce permissions on the server.
+
+For example:
+
+A student should not be able to access an admin endpoint simply by changing:
+
+```text
+/student/dashboard
+```
+
+to:
+
+```text
+/admin/dashboard
+```
+
+The server must verify:
+
+```text
+User authenticated?
+        ↓
+What is user's role?
+        ↓
+Does role have permission?
+        ↓
+Allow / Reject
+```
+
+---
+
+# 48. Logout
+
+When the user clicks Logout:
+
+```text
+Session terminated
+↓
+Return to login page
+```
+
+Protected dashboard pages should no longer be accessible through the previous session.
+
+---
+
+# 49. Account Deactivation
+
+If an admin deactivates a teacher:
+
+```text
+Teacher Status:
+Active → Inactive
+```
+
+The teacher cannot log in.
+
+Existing timetable records should not simply disappear.
+
+Instead, the admin should be warned:
+
+> This teacher has 12 upcoming lectures assigned.
+
+The admin should reassign those lectures before completely removing the teacher.
+
+---
+
+# 50. Student Promotion / Semester Change
+
+At the end of an academic year, students may move from:
+
+```text
+Semester 2 → Semester 3
+```
+
+The system should allow admins to update academic assignments in bulk.
+
+Example:
+
+```text
+BSc IT
+Semester 2
+Division A
+
+↓ Promote
+
+Semester 3
+Division A
+```
+
+The student's new timetable should automatically follow the new academic assignment.
+
+---
+
+# 51. Academic Year
+
+The system should understand academic years.
+
+Example:
+
+```text
+2026–27
+```
+
+Timetables, students, teachers, and exams should be associated with the correct academic year.
+
+This prevents old timetable data from mixing with the current academic year.
+
+---
+
+# 52. Mobile Logic
+
+The website should be responsive.
+
+### Student mobile
+
+Prioritize:
+
+```text
+Current Lecture
+Next Lecture
+Today's Timetable
+Updates
+```
+
+### Teacher mobile
+
+Prioritize:
+
+```text
+Current Lecture
+Next Lecture
+Quick Actions
+Today's Timetable
+```
+
+### Admin mobile
+
+Prioritize:
+
+```text
+Overview
+Quick Actions
+Notifications
+Menu
+```
+
+The functionality should remain the same.
+
+---
+
+# 53. Complete Example Scenario 1
+
+## Teacher Changes Classroom
+
+Initial state:
+
+```text
+DBMS
+10:00–11:00
+Room 204
+```
+
+Teacher clicks:
+
+**Change Room**
+
+Selects:
+
+**Room 305**
+
+System checks:
+
+```text
+Is Room 305 available?
+Yes
+
+Does teacher have another lecture?
+No
+
+Does division have another lecture?
+No
+```
+
+System updates central lecture:
+
+```text
+Room 204 → Room 305
+```
+
+Then:
+
+```text
+Teacher dashboard → Room 305
+Student dashboard → Room 305
+Admin activity → Room changed
+```
+
+Students receive:
+
+> 🔔 DBMS classroom changed from Room 204 to Room 305.
+
+---
+
+# 54. Complete Example Scenario 2
+
+## Teacher Cancels Lecture
+
+Initial:
+
+```text
+Web Development
+11:00–12:00
+Room 302
+```
+
+Teacher clicks:
+
+**Cancel**
+
+Provides reason:
+
+> Faculty unavailable.
+
+Confirms.
+
+System:
+
+```text
+Status:
+Scheduled → Cancelled
+```
+
+Students see:
+
+> Web Development  
+> 11:00–12:00  
+> **Cancelled**
+
+Students receive a notification.
+
+Admin activity log records the cancellation.
+
+---
+
+# 55. Complete Example Scenario 3
+
+## Admin Reschedules Lecture
+
+Admin changes:
+
+```text
+DBMS
+Monday 10 AM
+```
+
+to:
+
+```text
+Tuesday 2 PM
+```
+
+System checks:
+
+- Teacher availability
+- Room availability
+- Division availability
+
+All available.
+
+System shows:
+
+> This change will affect 72 students and 1 teacher.
+
+Admin confirms.
+
+Then:
+
+```text
+Central timetable updated
+        ↓
+Teacher timetable updated
+        ↓
+Student timetables updated
+        ↓
+Notifications generated
+        ↓
+Audit log updated
+```
+
+---
+
+# 56. Complete Example Scenario 4
+
+## Conflict During Rescheduling
+
+Teacher tries:
+
+```text
+DBMS
+Monday 10–11
+```
+
+→
+
+```text
+Tuesday 10–11
+```
+
+But Tuesday 10–11 already contains:
+
+```text
+Web Development
+```
+
+System rejects the change.
+
+Show:
+
+> ⚠️ Schedule Conflict  
+> You already have Web Development scheduled at this time.
+
+Offer:
+
+**Choose Another Time**
+
+The original lecture remains unchanged.
+
+---
+
+# 57. Complete Example Scenario 5
+
+## Admin Changes Exam Date
+
+Original:
+
+```text
+DBMS Exam
+12 October
+10 AM
+Room 204
+```
+
+Admin changes:
+
+```text
+15 October
+2 PM
+Room 305
+```
+
+System validates the new schedule.
+
+Admin confirms.
+
+Students receive:
+
+> 🔔 **Exam Schedule Updated**
+>
+> DBMS examination has been moved from 12 October at 10:00 AM to 15 October at 2:00 PM.
+
+The old record remains available in history.
+
+---
+
+# 58. Complete Example Scenario 6
+
+## Student Opens Website After a Change
+
+At 9:00 AM:
+
+```text
+DBMS
+10 AM
+Room 204
+```
+
+At 9:30 AM, teacher changes room:
+
+```text
+204 → 305
+```
+
+At 9:35 AM, student opens SyncCampus.
+
+The student should immediately see:
+
+```text
+DBMS
+10:00–11:00
+Room 305
+```
+
+and:
+
+> 🔔 **Room Changed**
+>
+> DBMS has moved from Room 204 to Room 305.
+
+The student does not need to ask the teacher or check another platform.
+
+---
+
+# 59. Complete Example Scenario 7
+
+## College-Wide Announcement
+
+Admin creates:
+
+**Holiday Announcement**
+
+Audience:
+
+**Entire College**
+
+Admin publishes.
+
+All active relevant users receive the announcement.
+
+If the admin selects:
+
+**BSc IT → Semester 3**
+
+only that group receives it.
+
+---
+
+# 60. Complete Example Scenario 8
+
+## Classroom Becomes Unavailable
+
+Admin marks:
+
+```text
+Room 204
+Status → Maintenance
+```
+
+The system checks upcoming lectures.
+
+Suppose Room 204 has:
+
+```text
+5 upcoming lectures
+```
+
+Show:
+
+> Room 204 has 5 upcoming lectures assigned.
+
+Admin can then reassign those lectures.
+
+The system should not silently delete the classroom assignments.
+
+---
+
+# 61. Complete Example Scenario 9
+
+## Teacher Becomes Unavailable
+
+If a teacher is deactivated or removed:
+
+System checks:
+
+```text
+Upcoming lectures assigned to teacher
+```
+
+Example:
+
+> 8 upcoming lectures found.
+
+Admin sees:
+
+**Reassign Teacher**
+
+For each lecture, admin can select another qualified teacher.
+
+This avoids creating timetable gaps accidentally.
+
+---
+
+# 62. Complete Example Scenario 10
+
+## Student Changes Division
+
+Admin moves:
+
+```text
+Student
+Division A → Division B
+```
+
+The system should immediately use Division B's timetable for that student.
+
+The student should no longer see Division A's timetable.
+
+This should not require manually creating a new student timetable.
+
+---
+
+# 63. Important Rule: Never Duplicate Official Information
+
+For example, do not create separate copies of:
+
+```text
+DBMS Room 204
+```
+
+for every student.
+
+Instead:
+
+```text
+Lecture L1042
+      ↓
+72 affected students
+      ↓
+1 teacher
+```
+
+All of them reference the same official lecture.
+
+This is what makes synchronization reliable.
+
+---
+
+# 64. Overall System Flow
+
+The complete SyncCampus logic can be understood like this:
+
+```text
+                    USER
+                     │
+                     ↓
+               EMAIL + OTP
+                     │
+                     ↓
+              AUTHENTICATION
+                     │
+                     ↓
+               ROLE CHECK
+                     │
+       ┌─────────────┼─────────────┐
+       ↓             ↓             ↓
+    STUDENT       TEACHER        ADMIN
+       │             │             │
+       ↓             ↓             ↓
+     VIEW        VIEW + EDIT     MANAGE
+       │             │             │
+       └─────────────┼─────────────┘
+                     ↓
+             CENTRAL SYSTEM
+                     │
+        ┌────────────┼─────────────┐
+        ↓            ↓             ↓
+    Timetable     Users        Classrooms
+        │
+        ├── Lectures
+        ├── Exams
+        ├── Announcements
+        └── Notifications
+                     │
+                     ↓
+              VALIDATION ENGINE
+                     │
+          ┌──────────┼──────────┐
+          ↓          ↓          ↓
+       Teacher     Room       Division
+       Conflict   Conflict    Conflict
+          │          │          │
+          └──────────┼──────────┘
+                     ↓
+              CHANGE APPROVED
+                     │
+                     ↓
+             CENTRAL DATA UPDATED
+                     │
+        ┌────────────┼────────────┐
+        ↓            ↓            ↓
+     Student      Teacher       Admin
+      Update       Update       Activity
+        │            │            │
+        └────────────┼────────────┘
+                     ↓
+                NOTIFICATION
+```
+
+---
+
+# 65. The Most Important Logic of SyncCampus
+
+The entire product can be summarized in five principles.
+
+### 1. One Source of Truth
+
+The official timetable exists centrally.
+
+### 2. Role-Based Access
+
+Students, teachers, and admins see different controls.
+
+### 3. Automatic Synchronization
+
+One approved change updates everyone affected.
+
+### 4. Conflict Prevention
+
+The system checks for timetable, teacher, classroom, division, and examination conflicts before saving changes.
+
+### 5. Traceability
+
+Important changes are recorded so the system knows:
+
+**Who changed what, when, and from what to what.**
+
+---
+
+# 66. Final User Experience
+
+### Student
+
+The student opens SyncCampus and sees:
+
+> **What do I have today?**
+
+---
+
+### Teacher
+
+The teacher opens SyncCampus and sees:
+
+> **What do I have today, and what do I need to manage?**
+
+---
+
+### Admin
+
+The admin opens SyncCampus and sees:
+
+> **What is happening across the campus, and what needs my attention?**
+
+---
+
+# 67. Final Product Vision
+
+SyncCampus should not feel like three separate websites.
+
+It should feel like **one connected campus system with three different levels of access**.
+
+```text
+                    SYNC CAMPUS
+                         │
+               ┌─────────┴─────────┐
+               │ CENTRAL SYSTEM    │
+               │                   │
+               │ Timetable         │
+               │ Users             │
+               │ Classes           │
+               │ Classrooms        │
+               │ Exams             │
+               │ Announcements     │
+               │ Notifications     │
+               │ Activity History  │
+               └─────────┬─────────┘
+                         │
+           ┌─────────────┼─────────────┐
+           ↓             ↓             ↓
+        STUDENTS       TEACHERS       ADMIN
+           │             │             │
+          VIEW       MANAGE OWN     MANAGE ALL
+                       LECTURES
+```
+
+The most important idea is:
+
+> **If information changes once, SyncCampus should make sure the correct people see that change everywhere.**
+
+That synchronization is the actual core of the product, not just the timetable UI.

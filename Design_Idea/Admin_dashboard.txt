@@ -1,0 +1,728 @@
+# SyncCampus Admin Dashboard
+
+Design the **Admin Dashboard** as the central management interface for SyncCampus.
+
+The admin has access to the entire campus system, including students, teachers, departments, classrooms, timetables, examinations, announcements, and system settings.
+
+Despite having many controls, the interface should remain **simple, organized, and easy to navigate**.
+
+The admin should be able to understand the current campus situation at a glance and perform important actions in a few clicks.
+
+---
+
+# 1. Overall Design
+
+Use the same visual identity as the Student and Teacher dashboards.
+
+### Style
+
+- Clean white interface
+- Very light blue/grey background
+- Blue as the primary color
+- Rounded cards
+- Subtle shadows
+- Clean icons
+- Modern typography
+- Plenty of whitespace
+- Minimal animations
+- No unnecessary graphics
+
+The dashboard should feel like a **modern Google-style management panel**, not an old college ERP.
+
+---
+
+# 2. Top Navigation
+
+At the top:
+
+**SyncCampus** on the left.
+
+On the right:
+
+**🔔 Notifications**
+
+**👤 Admin Profile**
+
+Example:
+
+**Admin**
+
+**Academic Administration**
+
+Keep the header simple.
+
+---
+
+# 3. Sidebar Navigation
+
+Because the admin has many functions, use a clean left sidebar on desktop.
+
+### Sidebar
+
+**🏠 Dashboard**
+
+**📅 Timetable**
+
+**👨‍🎓 Students**
+
+**👨‍🏫 Teachers**
+
+**🏫 Classrooms**
+
+**📝 Examinations**
+
+**📢 Announcements**
+
+**📊 Reports**
+
+**⚙️ Settings**
+
+At the bottom:
+
+**Logout**
+
+On mobile, convert this into a menu/drawer.
+
+Do not show every possible action directly on the dashboard.
+
+---
+
+# 4. Dashboard Overview
+
+The first section should give the admin a quick overview.
+
+Heading:
+
+**Good morning, Admin**
+
+**Campus Overview**
+
+Show simple summary cards.
+
+### Students
+
+**2,700**
+
+Total students
+
+### Teachers
+
+**120**
+
+Active teachers
+
+### Classes
+
+**85**
+
+Active divisions/classes
+
+### Classrooms
+
+**42**
+
+Available classrooms
+
+These are informational cards, not complicated graphs.
+
+---
+
+# 5. Today's Campus Schedule
+
+The admin should be able to see the overall schedule.
+
+## Today's Schedule
+
+Show:
+
+**Total Lectures:** 185
+
+**Scheduled:** 172
+
+**Cancelled:** 5
+
+**Rescheduled:** 8
+
+Use simple status indicators.
+
+Example:
+
+```text id="rj5t5s"
+Scheduled       172
+Rescheduled       8
+Cancelled         5
+```
+
+The admin can click:
+
+**View Full Timetable →**
+
+---
+
+# 6. Quick Actions
+
+This should be one of the most useful sections.
+
+## Quick Actions
+
+Large but simple buttons:
+
+**+ Create Lecture**
+
+**Edit Timetable**
+
+**Change Classroom**
+
+**Manage Exam Schedule**
+
+**Add Announcement**
+
+**Manage Users**
+
+These actions should open focused screens rather than huge forms.
+
+---
+
+# 7. Timetable Management
+
+When the admin selects **Timetable**, open the full timetable management interface.
+
+At the top:
+
+**Timetable Management**
+
+Filters:
+
+**Department ▼**
+
+**Course ▼**
+
+**Semester ▼**
+
+**Division ▼**
+
+**Day ▼**
+
+Example:
+
+```text
+Department: Information Technology
+Semester: 3
+Division: A
+Day: Monday
+```
+
+Then show:
+
+| Time | Subject | Teacher | Room | Status |
+|---|---|---|---|---|
+| 9–10 | Computer Networks | Prof. ABC | 201 | Scheduled |
+| 10–11 | DBMS | Prof. XYZ | 204 | Scheduled |
+| 11–12 | Web Development | Prof. DEF | 302 | Scheduled |
+
+Each lecture should have:
+
+**Edit**
+
+**Reschedule**
+
+**Cancel**
+
+The admin can modify any timetable entry.
+
+---
+
+# 8. Create / Edit Lecture
+
+When the admin creates a lecture:
+
+### Create Lecture
+
+**Subject**
+
+[ Select Subject ]
+
+**Teacher**
+
+[ Select Teacher ]
+
+**Course**
+
+[ Select Course ]
+
+**Semester**
+
+[ Select Semester ]
+
+**Division**
+
+[ Select Division ]
+
+**Date / Day**
+
+[ Select ]
+
+**Time**
+
+[ Select ]
+
+**Classroom**
+
+[ Select ]
+
+Then:
+
+**Create Lecture**
+
+Before saving, show a small summary:
+
+> DBMS  
+> Monday • 10:00–11:00  
+> BSc IT • Semester 3 • Division A  
+> Prof. XYZ • Room 204
+
+**Confirm & Create**
+
+---
+
+# 9. Classroom Management
+
+The admin can manage all classrooms.
+
+## Classrooms
+
+Example:
+
+**Room 101**
+
+Capacity: 60  
+Status: Available
+
+**Room 204**
+
+Capacity: 70  
+Status: Occupied
+
+**Computer Lab 1**
+
+Capacity: 40  
+Status: Available
+
+The admin can:
+
+✓ Add classroom  
+✓ Edit classroom  
+✓ Mark unavailable  
+✓ Change classroom assignment
+
+If a classroom is unavailable, SyncCampus should help prevent another lecture from being assigned there.
+
+---
+
+# 10. Teacher Management
+
+## Teachers
+
+Show a searchable list.
+
+Example:
+
+**Prof. Rahul Sharma**
+
+Department: IT  
+Subjects: DBMS, Java  
+Status: Active
+
+Actions:
+
+**View**
+
+**Edit**
+
+**Assign Classes**
+
+The admin can:
+
+- Add teacher
+- Edit teacher information
+- Assign subjects
+- Assign classes
+- Assign timetable
+- Deactivate account
+
+---
+
+# 11. Student Management
+
+## Students
+
+Provide search and filters.
+
+Filters:
+
+**Department**
+
+**Course**
+
+**Semester**
+
+**Division**
+
+Example:
+
+**Shivam Shirodkar**
+
+BSc IT  
+Semester 3  
+Division A  
+Student ID: IT2026001
+
+Actions:
+
+**View Profile**
+
+**Edit**
+
+**Deactivate**
+
+The admin should not need to manually search through thousands of students.
+
+Include a prominent:
+
+**🔍 Search Student**
+
+---
+
+# 12. Examination Management
+
+This should have its own section.
+
+## Examination Schedule
+
+The admin can:
+
+- Create exam
+- Set exam date
+- Set exam time
+- Assign subject
+- Assign classroom
+- Assign course/semester
+- Change exam schedule
+- Cancel exam
+- Publish exam timetable
+
+Example:
+
+**Database Management System**
+
+12 October 2026  
+10:00 AM – 1:00 PM  
+Room 204
+
+Status:
+
+**Published**
+
+Students automatically receive the updated examination timetable.
+
+---
+
+# 13. Announcements
+
+## Announcements
+
+The admin can create announcements for:
+
+**Entire College**
+
+**Department**
+
+**Course**
+
+**Semester**
+
+**Division**
+
+Example:
+
+### Create Announcement
+
+**Title**
+
+Semester 3 Internal Examination
+
+**Audience**
+
+BSc IT • Semester 3
+
+**Message**
+
+Internal examination timetable has been published.
+
+**Publish Announcement**
+
+Once published, the selected students receive the announcement.
+
+---
+
+# 14. System-Wide Updates
+
+The admin should have a section called:
+
+## Recent Activity
+
+Example:
+
+**10:42 AM**
+
+Prof. Sharma changed DBMS room  
+204 → 305
+
+**10:20 AM**
+
+Admin rescheduled Web Development  
+11:00 AM → 2:00 PM
+
+**09:55 AM**
+
+New announcement published  
+Semester 3 Examination
+
+This helps the admin understand what is happening in the system.
+
+---
+
+# 15. Conflict Detection
+
+This is an important feature for the admin.
+
+Before saving a timetable change, SyncCampus should automatically check for conflicts.
+
+For example:
+
+### ⚠️ Timetable Conflict
+
+Room 204 is already assigned to:
+
+**Web Development**
+
+10:00 AM – 11:00 AM
+
+You are trying to assign:
+
+**DBMS**
+
+10:00 AM – 11:00 AM
+
+Options:
+
+**Choose Another Room**
+
+**Change Time**
+
+This prevents timetable mistakes.
+
+The same system should check:
+
+- Teacher double-booking
+- Classroom double-booking
+- Division double-booking
+- Exam room conflicts
+
+---
+
+# 16. Reports
+
+Keep reports simple.
+
+## Reports
+
+Possible reports:
+
+**Student Count**
+
+**Teacher Count**
+
+**Classroom Usage**
+
+**Lecture Schedule**
+
+**Cancelled Lectures**
+
+**Rescheduled Lectures**
+
+**Exam Schedule**
+
+The admin can filter reports by:
+
+**Date**
+
+**Department**
+
+**Course**
+
+**Semester**
+
+---
+
+# 17. Admin Permissions
+
+Admin has the highest level of access.
+
+### Admin can:
+
+✓ Manage students  
+✓ Manage teachers  
+✓ Manage classrooms  
+✓ Create timetables  
+✓ Edit timetables  
+✓ Cancel lectures  
+✓ Reschedule lectures  
+✓ Change classrooms  
+✓ Manage examinations  
+✓ Publish announcements  
+✓ View system activity  
+✓ Manage departments/classes  
+✓ Manage user accounts  
+✓ Manage system settings  
+
+The admin effectively controls the entire SyncCampus system.
+
+---
+
+# 18. Important Confirmation System
+
+Because admin changes can affect hundreds or thousands of students, important actions should require confirmation.
+
+Example:
+
+### Reschedule Lecture?
+
+**DBMS**
+
+BSc IT • Semester 3 • Division A
+
+Current:
+
+10:00 AM • Room 204
+
+New:
+
+2:00 PM • Room 305
+
+**142 students will be affected.**
+
+[Cancel] [Confirm Change]
+
+This makes the system safer and prevents accidental changes.
+
+---
+
+# 19. Automatic Synchronization
+
+This is the core of SyncCampus.
+
+Example:
+
+Admin changes:
+
+**DBMS**
+
+10:00 AM → 2:00 PM
+
+↓
+
+Central SyncCampus system updates
+
+↓
+
+Teacher dashboard updates
+
+↓
+
+Student dashboards update
+
+↓
+
+Affected students receive notification
+
+**🔔 Timetable Updated**
+
+DBMS has been rescheduled to **2:00 PM**.
+
+The admin should never need to separately inform teachers or students.
+
+---
+
+# 20. Admin Dashboard Layout
+
+The main desktop dashboard should roughly look like:
+
+```text id="v5n6wq"
+┌───────────────────────────────────────────────────────────────────┐
+│ SyncCampus                              🔔        👤 Admin        │
+├───────────────┬───────────────────────────────────────────────────┤
+│               │                                                   │
+│ 🏠 Dashboard  │  Good morning, Admin                             │
+│               │  Campus Overview                                 │
+│ 📅 Timetable  │                                                   │
+│               │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌────────┐ │
+│ 👨‍🎓 Students  │  │ Students│ │ Teachers│ │ Classes │ │ Rooms  │ │
+│               │  │  2,700  │ │   120   │ │   85    │ │   42   │ │
+│ 👨‍🏫 Teachers  │  └─────────┘ └─────────┘ └─────────┘ └────────┘ │
+│               │                                                   │
+│ 🏫 Classrooms │  Quick Actions                                   │
+│               │                                                   │
+│ 📝 Exams      │  [+ Create Lecture] [Edit Timetable]             │
+│               │  [Change Classroom] [Manage Exams]               │
+│ 📢 Announce.  │                                                   │
+│               │  Today's Campus Schedule                         │
+│ 📊 Reports    │  ┌─────────────────────────────────────────────┐ │
+│               │  │ Scheduled 172 | Rescheduled 8 | Cancelled 5│ │
+│ ⚙️ Settings   │  └─────────────────────────────────────────────┘ │
+│               │                                                   │
+│ 🚪 Logout     │  Recent Activity                                 │
+│               │  • DBMS room changed 204 → 305                 │
+│               │  • Web Development rescheduled                 │
+│               │  • New announcement published                   │
+│               │                                                   │
+└───────────────┴───────────────────────────────────────────────────┘
+```
+
+# 21. Important Design Principle
+
+Do **not** put every admin function on the home screen.
+
+The home screen should answer:
+
+> **"What is happening on my campus right now?"**
+
+The sidebar provides access to detailed management.
+
+This keeps the admin dashboard powerful without making it confusing.
+
+---
+
+# SyncCampus Role Structure
+
+The three interfaces should feel like one product:
+
+### Student
+
+**View**
+
+"What do I have today?"
+
+### Teacher
+
+**View + Manage**
+
+"What do I have, and what do I need to change?"
+
+### Admin
+
+**Control**
+
+"What is happening across the entire campus, and what needs to be managed?"
+
+All three use the same design system, while their permissions and available actions are different.
