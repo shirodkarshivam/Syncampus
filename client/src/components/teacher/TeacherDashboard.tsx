@@ -16,12 +16,14 @@ import type { Lecture } from '../../data/mockData';
 import { findTeacherByQuery, getLecturesForTeacher, TEACHERS_DATA } from '../../data/teachersData';
 import type { TeacherProfile } from '../../data/teachersData';
 import { getLecturesForTeacherId } from '../../data/timetableData';
-import { timetableStore } from '../../data/timetableStore';
+import { timetableStore, LectureChangeAlert } from '../../data/timetableStore';
+import { getUserProfile, subscribeUserProfile } from '../../data/userProfileStore';
 
 import { TeacherHomeView } from './views/TeacherHomeView';
 import { TeacherTimetableView } from './views/TeacherTimetableView';
 import { TeacherClassesView } from './views/TeacherClassesView';
 import { TeacherProfileView } from './views/TeacherProfileView';
+import { NotificationDrawer } from '../common/NotificationDrawer';
 
 import { TeacherCancelModal } from './modals/TeacherCancelModal';
 import { TeacherRescheduleModal } from './modals/TeacherRescheduleModal';
@@ -38,6 +40,7 @@ export const TeacherDashboard: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<string>('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Dynamically resolve teacher profile from any query (email, ID, or name)
@@ -50,13 +53,28 @@ export const TeacherDashboard: React.FC<Props> = ({
     return timetableStore.getLecturesForTeacherId(activeTeacher.id, activeTeacher.name);
   });
 
+  const [historyAlerts, setHistoryAlerts] = useState(() => {
+    return timetableStore.getAllAlertsHistory('teacher', activeTeacher.id, activeTeacher.name);
+  });
+
+  const [profileData, setProfileData] = useState(() => {
+    return getUserProfile(activeTeacher.email || activeTeacher.id);
+  });
+
   useEffect(() => {
     const update = () => {
       setMyLectures(timetableStore.getLecturesForTeacherId(activeTeacher.id, activeTeacher.name));
+      setHistoryAlerts(timetableStore.getAllAlertsHistory('teacher', activeTeacher.id, activeTeacher.name));
     };
     update();
-    const unsub = timetableStore.subscribe(update);
-    return unsub;
+    const unsubTimetable = timetableStore.subscribe(update);
+    const unsubProfile = subscribeUserProfile(() => {
+      setProfileData(getUserProfile(activeTeacher.email || activeTeacher.id));
+    });
+    return () => {
+      unsubTimetable();
+      unsubProfile();
+    };
   }, [activeTeacher]);
 
   // Modal target states
@@ -81,6 +99,9 @@ export const TeacherDashboard: React.FC<Props> = ({
     const updated = timetableStore.rescheduleLecture(id, newTime, newRoom, undefined, undefined, activeTeacher.title);
     if (updated) {
       showToast(`Rescheduled to ${newTime} in ${newRoom}. Central timetable & students synchronized.`);
+    } else {
+      const err = timetableStore.getLastError() || 'Schedule slot or room conflict detected.';
+      showToast(`⚠️ Conflict: ${err}`);
     }
   };
 
@@ -88,6 +109,9 @@ export const TeacherDashboard: React.FC<Props> = ({
     const updated = timetableStore.changeRoom(id, newRoom, activeTeacher.title);
     if (updated) {
       showToast(`Classroom updated to ${newRoom}. Students notified automatically.`);
+    } else {
+      const err = timetableStore.getLastError() || `Room ${newRoom} is already occupied at this time.`;
+      showToast(`⚠️ Cannot Change Room: ${err}`);
     }
   };
 
@@ -192,14 +216,34 @@ export const TeacherDashboard: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="topbar-right">
+          <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button 
               className="icon-button" 
-              title="Notifications"
-              onClick={() => showToast('Faculty Notice: Central conflict-free timetable active.')}
+              title="Schedule Change Alerts & History"
+              onClick={() => setIsNotificationDrawerOpen(true)}
+              style={{ position: 'relative' }}
             >
               <Bell size={18} />
-              <span className="notification-badge-dot" style={{ backgroundColor: '#0D9488' }} />
+              {historyAlerts.active.length > 0 && (
+                <span 
+                  style={{
+                    position: 'absolute',
+                    top: '-3px',
+                    right: '-3px',
+                    background: '#EF4444',
+                    color: '#FFFFFF',
+                    borderRadius: '10px',
+                    padding: '1px 6px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    lineHeight: '13px',
+                    boxShadow: '0 2px 5px rgba(239, 68, 68, 0.4)',
+                    border: '1.5px solid #FFFFFF'
+                  }}
+                >
+                  {historyAlerts.active.length}
+                </span>
+              )}
             </button>
 
             <div 
@@ -208,7 +252,17 @@ export const TeacherDashboard: React.FC<Props> = ({
               style={{ cursor: 'pointer' }}
               title="View Faculty Profile"
             >
-              <div className="teacher-profile-avatar">{teacherInitials}</div>
+              <div 
+                className="teacher-profile-avatar"
+                style={profileData.avatarUrl ? {
+                  backgroundImage: `url(${profileData.avatarUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  color: 'transparent'
+                } : {}}
+              >
+                {!profileData.avatarUrl && teacherInitials}
+              </div>
               <div className="profile-info">
                 <span className="profile-name">{activeTeacher.title}</span>
                 <span className="profile-subtitle">Dept of {activeTeacher.department} ({activeTeacher.id})</span>
@@ -274,6 +328,19 @@ export const TeacherDashboard: React.FC<Props> = ({
         onClose={() => setChangeRoomModalLecture(null)}
         lecture={changeRoomModalLecture}
         onConfirmChangeRoom={handleConfirmChangeRoom}
+      />
+
+      {/* Bell Notification Drawer for Alert History & Dismissed Alerts */}
+      <NotificationDrawer
+        isOpen={isNotificationDrawerOpen}
+        onClose={() => setIsNotificationDrawerOpen(false)}
+        activeAlerts={historyAlerts.active}
+        dismissedAlerts={historyAlerts.dismissed}
+        onDismissAlert={(id) => timetableStore.dismissAlert(id)}
+        onRestoreAlert={(id) => timetableStore.restoreAlert(id)}
+        onMarkAllAsRead={() => timetableStore.markAllAlertsAsDismissed('teacher', activeTeacher.id, activeTeacher.name)}
+        role="teacher"
+        userName={activeTeacher.title}
       />
     </div>
   );

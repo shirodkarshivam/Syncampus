@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import type { Lecture, Classroom } from '../../../data/mockData';
 import { TEACHERS_DATA } from '../../../data/teachersData';
 import type { TeacherProfile } from '../../../data/teachersData';
+import { timetableStore } from '../../../data/timetableStore';
 
 interface Props {
   isOpen: boolean;
@@ -30,17 +31,26 @@ export const CreateLectureModal: React.FC<Props> = ({
   const [time, setTime] = useState('10:00 - 11:00');
   const [room, setRoom] = useState(classrooms[0]?.name || 'Room 204');
 
-  if (!isOpen) return null;
+  const divYear = semester <= 2 ? 'FY' : semester <= 4 ? 'SY' : 'TY';
+  const divisionKey = `${course}_${divYear}_${division}`;
 
-  // Conflict Detection Algorithm (Section 15 of spec)
-  const conflictingLecture = existingLectures.find(
-    (l) => l.day === day && l.time === time && l.room === room && l.status !== 'Cancelled'
-  );
+  // Multi-dimensional conflict check
+  const conflictResult = useMemo(() => {
+    return timetableStore.checkConflict({
+      day,
+      time,
+      room,
+      teacher,
+      divisionKey
+    });
+  }, [day, time, room, teacher, divisionKey]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (conflictingLecture) {
-      alert('Cannot create lecture with unresolved timetable conflict. Please choose another room or time.');
+    if (conflictResult.hasConflict) {
+      alert(`Timetable Conflict: ${conflictResult.conflict?.message}`);
       return;
     }
 
@@ -51,6 +61,8 @@ export const CreateLectureModal: React.FC<Props> = ({
       course,
       semester,
       division,
+      year: divYear,
+      divisionKey,
       department: 'Information Technology',
       day,
       time,
@@ -211,17 +223,17 @@ export const CreateLectureModal: React.FC<Props> = ({
               </select>
             </div>
 
-            {/* Section 15: Conflict Detection Alert */}
-            {conflictingLecture && (
+            {/* Section 15: Multi-dimensional Conflict Detection Alert */}
+            {conflictResult.hasConflict && (
               <div className="conflict-alert-box">
                 <AlertTriangle size={24} className="conflict-icon" />
                 <div className="conflict-content">
                   <h4>⚠️ Timetable Conflict Detected</h4>
                   <p>
-                    <strong>{room}</strong> is already assigned to <strong>{conflictingLecture.subject}</strong> ({conflictingLecture.time}).
+                    {conflictResult.conflict?.message}
                   </p>
                   <p style={{ marginTop: '4px', fontSize: '12px' }}>
-                    <strong>Options:</strong> Choose another room or change the time slot to proceed.
+                    <strong>Options:</strong> Choose an unoccupied room, a free faculty member, or another time slot to proceed.
                   </p>
                 </div>
               </div>
@@ -246,11 +258,11 @@ export const CreateLectureModal: React.FC<Props> = ({
             <button 
               type="submit" 
               className="btn-primary" 
-              disabled={!!conflictingLecture}
-              style={{ opacity: conflictingLecture ? 0.6 : 1 }}
+              disabled={conflictResult.hasConflict}
+              style={{ opacity: conflictResult.hasConflict ? 0.6 : 1, cursor: conflictResult.hasConflict ? 'not-allowed' : 'pointer' }}
             >
               <CheckCircle2 size={16} />
-              <span>Confirm &amp; Create</span>
+              <span>{conflictResult.hasConflict ? 'Conflict: Resolve First' : 'Confirm & Create'}</span>
             </button>
           </div>
         </form>

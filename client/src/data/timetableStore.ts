@@ -22,9 +22,22 @@ export interface LectureChangeAlert {
   dismissed?: boolean;
 }
 
+export interface ScheduleConflict {
+  type: 'room' | 'teacher' | 'division';
+  conflictingLecture: Lecture;
+  message: string;
+}
+
+export interface ConflictCheckResult {
+  hasConflict: boolean;
+  conflict?: ScheduleConflict;
+  conflicts: ScheduleConflict[];
+}
+
 // In-memory cache
 let lecturesCache: Lecture[] | null = null;
 let alertsCache: LectureChangeAlert[] | null = null;
+let lastStoreError: string | null = null;
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
@@ -169,6 +182,74 @@ export const timetableStore = {
     notifyListeners();
   },
 
+  restoreAlert(id: string) {
+    const alerts = loadAlerts().map(a => a.id === id ? { ...a, dismissed: false } : a);
+    saveAlerts(alerts);
+    notifyListeners();
+  },
+
+  getAlertsForTeacher(teacherId: string, teacherName?: string): LectureChangeAlert[] {
+    const alerts = loadAlerts();
+    const tname = (teacherName || '').toLowerCase();
+    const teacherLectures = this.getLecturesForTeacherId(teacherId, teacherName);
+    const lectureIds = new Set(teacherLectures.map(l => l.id));
+    return alerts.filter(a => {
+      if (a.dismissed) return false;
+      if (lectureIds.has(a.lectureId)) return true;
+      if (tname && a.triggeredBy.toLowerCase().includes(tname)) return true;
+      if (tname && a.oldValue && a.oldValue.toLowerCase().includes(tname)) return true;
+      if (tname && a.newValue && a.newValue.toLowerCase().includes(tname)) return true;
+      return false;
+    });
+  },
+
+  getAllAlertsHistory(role: 'student' | 'teacher', divKeyOrTeacherId: string, name?: string): { active: LectureChangeAlert[]; dismissed: LectureChangeAlert[] } {
+    const alerts = loadAlerts();
+    if (role === 'student') {
+      const userAlerts = alerts.filter(a => a.divisionKey === divKeyOrTeacherId);
+      return {
+        active: userAlerts.filter(a => !a.dismissed),
+        dismissed: userAlerts.filter(a => !!a.dismissed)
+      };
+    } else {
+      const tname = (name || '').toLowerCase();
+      const teacherLectures = this.getLecturesForTeacherId(divKeyOrTeacherId, name);
+      const lectureIds = new Set(teacherLectures.map(l => l.id));
+      const userAlerts = alerts.filter(a => {
+        if (lectureIds.has(a.lectureId)) return true;
+        if (tname && a.triggeredBy.toLowerCase().includes(tname)) return true;
+        if (tname && a.oldValue && a.oldValue.toLowerCase().includes(tname)) return true;
+        if (tname && a.newValue && a.newValue.toLowerCase().includes(tname)) return true;
+        return false;
+      });
+      return {
+        active: userAlerts.filter(a => !a.dismissed),
+        dismissed: userAlerts.filter(a => !!a.dismissed)
+      };
+    }
+  },
+
+  markAllAlertsAsDismissed(role: 'student' | 'teacher', divKeyOrTeacherId: string, name?: string) {
+    const alerts = loadAlerts();
+    if (role === 'student') {
+      const updated = alerts.map(a => a.divisionKey === divKeyOrTeacherId ? { ...a, dismissed: true } : a);
+      saveAlerts(updated);
+    } else {
+      const tname = (name || '').toLowerCase();
+      const teacherLectures = this.getLecturesForTeacherId(divKeyOrTeacherId, name);
+      const lectureIds = new Set(teacherLectures.map(l => l.id));
+      const updated = alerts.map(a => {
+        const matches = lectureIds.has(a.lectureId) || 
+          (tname && a.triggeredBy.toLowerCase().includes(tname)) || 
+          (tname && a.oldValue && a.oldValue.toLowerCase().includes(tname)) ||
+          (tname && a.newValue && a.newValue.toLowerCase().includes(tname));
+        return matches ? { ...a, dismissed: true } : a;
+      });
+      saveAlerts(updated);
+    }
+    notifyListeners();
+  },
+
   // Write operations
   cancelLecture(id: string, reason = 'Cancelled by administration', triggeredBy = 'Admin'): Lecture | null {
     const all = loadLectures();
@@ -203,17 +284,126 @@ export const timetableStore = {
     return updatedLec;
   },
 
+  getLastError(): string | null {
+    return lastStoreError;
+  },
+
+  checkConflict(params: {
+    lectureId?: string;
+    day: string;
+    time: string;
+    room?: string;
+    teacher?: string;
+    divisionKey?: string;
+  }): ConflictCheckResult {
+    const all = loadLectures();
+    const conflicts: ScheduleConflict[] = [];
+
+    const normTime = (params.time || '').replace(/\s+/g, '');
+    const normDay = (params.day || '').trim().toLowerCase();
+    const normRoom = (params.room || '').trim().toLowerCase();
+    const normTeacher = (params.teacher || '').trim().toLowerCase();
+
+    for (const l of all) {
+      if (params.lectureId && l.id === params.lectureId) continue;
+      if (l.status === 'Cancelled') continue;
+      
+      const lTime = (l.time || '').replace(/\s+/g, '');
+      const lDay = (l.day || '').trim().toLowerCase();
+      if (lDay !== normDay || lTime !== normTime) continue;
+
+      // Check Room Conflict
+      if (normRoom && (l.room || '').trim().toLowerCase() === normRoom) {
+        conflicts.push({
+          type: 'room',
+          conflictingLecture: l,
+          message: `Classroom "${params.room}" is already occupied on ${params.day} (${params.time}) by ${l.teacher} for "${l.subject}" (${l.course} Div ${l.division}).`
+        });
+      }
+
+      // Check Teacher Conflict
+      if (normTeacher && (l.teacher || '').trim().toLowerCase() === normTeacher) {
+        conflicts.push({
+          type: 'teacher',
+          conflictingLecture: l,
+          message: `Faculty "${params.teacher}" already has another lecture "${l.subject}" scheduled in ${l.room} on ${params.day} (${params.time}).`
+        });
+      }
+
+      // Check Student Division Conflict
+      if (params.divisionKey && l.divisionKey === params.divisionKey) {
+        conflicts.push({
+          type: 'division',
+          conflictingLecture: l,
+          message: `Division "${params.divisionKey}" already has "${l.subject}" scheduled with ${l.teacher} in ${l.room} on ${params.day} (${params.time}).`
+        });
+      }
+    }
+
+    return {
+      hasConflict: conflicts.length > 0,
+      conflict: conflicts[0],
+      conflicts
+    };
+  },
+
+  getRoomOccupancy(day: string, time: string, excludeLectureId?: string) {
+    const all = loadLectures();
+    const map = new Map<string, Lecture>();
+    const normTime = (time || '').replace(/\s+/g, '');
+    const normDay = (day || '').trim().toLowerCase();
+
+    for (const l of all) {
+      if (excludeLectureId && l.id === excludeLectureId) continue;
+      if (l.status === 'Cancelled') continue;
+      if ((l.day || '').trim().toLowerCase() === normDay && (l.time || '').replace(/\s+/g, '') === normTime) {
+        map.set((l.room || '').trim().toLowerCase(), l);
+      }
+    }
+
+    return {
+      isOccupied: (roomName: string): Lecture | undefined => {
+        return map.get((roomName || '').trim().toLowerCase());
+      },
+      occupiedMap: map
+    };
+  },
+
   rescheduleLecture(
     id: string, 
     newTime: string, 
     newRoom: string, 
     newDay?: string, 
     newTeacher?: string,
-    triggeredBy = 'Admin'
+    triggeredBy = 'Admin',
+    force = false
   ): Lecture | null {
+    lastStoreError = null;
     const all = loadLectures();
     const target = all.find(l => l.id === id);
-    if (!target) return null;
+    if (!target) {
+      lastStoreError = 'Lecture not found.';
+      return null;
+    }
+
+    const targetDay = newDay || target.day;
+    const targetTeacher = newTeacher || target.teacher;
+
+    // Check all potential conflicts (Room, Teacher, Division)
+    const conflictCheck = this.checkConflict({
+      lectureId: id,
+      day: targetDay,
+      time: newTime,
+      room: newRoom,
+      teacher: targetTeacher,
+      divisionKey: target.divisionKey
+    });
+
+    if (conflictCheck.hasConflict && !force) {
+      lastStoreError = conflictCheck.conflict?.message || 'Schedule conflict detected.';
+      console.warn('rescheduleLecture rejected due to conflict:', lastStoreError);
+      return null;
+    }
 
     const origTime = target.originalTime || target.time;
     const origRoom = target.originalRoom || target.room;
@@ -226,8 +416,8 @@ export const timetableStore = {
       originalTeacher: origTeacher,
       time: newTime,
       room: newRoom,
-      day: newDay || target.day,
-      teacher: newTeacher || target.teacher,
+      day: targetDay,
+      teacher: targetTeacher,
       status: 'Rescheduled' as const,
       updatedAt: new Date().toLocaleTimeString()
     };
@@ -253,10 +443,27 @@ export const timetableStore = {
     return updatedLec;
   },
 
-  changeTeacher(id: string, newTeacherName: string, newTeacherId?: string, triggeredBy = 'Admin'): Lecture | null {
+  changeTeacher(id: string, newTeacherName: string, newTeacherId?: string, triggeredBy = 'Admin', force = false): Lecture | null {
+    lastStoreError = null;
     const all = loadLectures();
     const target = all.find(l => l.id === id);
-    if (!target) return null;
+    if (!target) {
+      lastStoreError = 'Lecture not found.';
+      return null;
+    }
+
+    const conflictCheck = this.checkConflict({
+      lectureId: id,
+      day: target.day,
+      time: target.time,
+      teacher: newTeacherName
+    });
+
+    if (conflictCheck.hasConflict && !force) {
+      lastStoreError = conflictCheck.conflict?.message || `Faculty "${newTeacherName}" is already busy at this time.`;
+      console.warn('changeTeacher rejected due to conflict:', lastStoreError);
+      return null;
+    }
 
     const origTeacher = target.originalTeacher || target.teacher;
     const updatedLec: Lecture = {
@@ -289,16 +496,35 @@ export const timetableStore = {
     return updatedLec;
   },
 
-  changeRoom(id: string, newRoom: string, triggeredBy = 'Admin'): Lecture | null {
+  changeRoom(id: string, newRoom: string, triggeredBy = 'Admin', force = false): Lecture | null {
+    lastStoreError = null;
     const all = loadLectures();
     const target = all.find(l => l.id === id);
-    if (!target) return null;
+    if (!target) {
+      lastStoreError = 'Lecture not found.';
+      return null;
+    }
+
+    // Check Room Conflict at target.day and target.time
+    const conflictCheck = this.checkConflict({
+      lectureId: id,
+      day: target.day,
+      time: target.time,
+      room: newRoom
+    });
+
+    if (conflictCheck.hasConflict && !force) {
+      lastStoreError = conflictCheck.conflict?.message || `Room "${newRoom}" is already occupied on ${target.day} (${target.time}).`;
+      console.warn('changeRoom rejected due to conflict:', lastStoreError);
+      return null;
+    }
 
     const origRoom = target.originalRoom || target.room;
     const updatedLec: Lecture = {
       ...target,
       originalRoom: origRoom,
       room: newRoom,
+      status: 'Rescheduled' as const,
       updatedAt: new Date().toLocaleTimeString()
     };
 

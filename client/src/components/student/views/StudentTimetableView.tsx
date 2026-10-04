@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Grid, List, Clock, User, DoorOpen, Calendar, CheckCircle2, AlertTriangle, CalendarClock } from 'lucide-react';
 import type { Lecture } from '../../../data/mockData';
 import type { Student } from '../../../data/studentsData';
@@ -9,9 +9,33 @@ interface Props {
 }
 
 export const StudentTimetableView: React.FC<Props> = ({ lectures, student }) => {
-  const [viewType, setViewType] = useState<'grid' | 'daily'>('grid');
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-  const [selectedDay, setSelectedDay] = useState('Monday');
+  
+  // On mobile viewports (< 768px), default directly to sleek Daily Schedule List view
+  const [viewType, setViewType] = useState<'grid' | 'daily'>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return 'daily';
+    }
+    return 'grid';
+  });
+
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const dayIndex = new Date().getDay();
+    const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const cur = names[dayIndex];
+    return days.includes(cur) ? cur : 'Monday';
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        // Auto-adapt to daily list on mobile if user resizes window down
+        setViewType(prev => (prev === 'grid' ? 'daily' : prev));
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const periods = [
     '09:00 - 10:00',

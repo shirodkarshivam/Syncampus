@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { X, CalendarClock, Users, RefreshCw, AlertTriangle, UserCheck } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, CalendarClock, Users, RefreshCw, AlertTriangle, UserCheck, CheckCircle2 } from 'lucide-react';
 import type { Lecture, Classroom } from '../../../data/mockData';
 import { TEACHERS_DATA } from '../../../data/teachersData';
 import type { TeacherProfile } from '../../../data/teachersData';
 import { INITIAL_CLASSROOMS } from '../../../data/mockData';
+import { timetableStore } from '../../../data/timetableStore';
 
 interface Props {
   isOpen: boolean;
@@ -38,9 +39,26 @@ export const RescheduleModal: React.FC<Props> = ({
     }
   }, [lecture]);
 
+  // Real-time multi-dimensional conflict checking
+  const conflictResult = useMemo(() => {
+    if (!lecture) return { hasConflict: false, conflict: undefined, conflicts: [] };
+    return timetableStore.checkConflict({
+      lectureId: lecture.id,
+      day: newDay,
+      time: newTime,
+      room: newRoom,
+      teacher: newTeacher,
+      divisionKey: lecture.divisionKey
+    });
+  }, [lecture, newDay, newTime, newRoom, newTeacher]);
+
   if (!isOpen || !lecture) return null;
 
   const handleConfirm = () => {
+    if (conflictResult.hasConflict) {
+      alert(`Timetable Conflict: ${conflictResult.conflict?.message}`);
+      return;
+    }
     onConfirmReschedule(lecture.id, newTime, newRoom, newDay, newTeacher);
     onClose();
   };
@@ -173,6 +191,43 @@ export const RescheduleModal: React.FC<Props> = ({
             </div>
           </div>
 
+          {/* Conflict Warning or Verified Banner */}
+          {conflictResult.hasConflict ? (
+            <div style={{
+              background: '#FEF2F2',
+              border: '1.5px solid #F87171',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              marginTop: '12px',
+              color: '#991B1B'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '13px' }}>
+                <AlertTriangle size={16} color="#DC2626" />
+                <span>Timetable Conflict Detected</span>
+              </div>
+              <div style={{ fontSize: '12px', marginTop: '4px', lineHeight: '1.4' }}>
+                {conflictResult.conflict?.message}
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              background: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              marginTop: '12px',
+              color: '#15803D',
+              fontSize: '12px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <CheckCircle2 size={15} />
+              <span>Verified conflict-free: Room, faculty, and division are clear.</span>
+            </div>
+          )}
+
           {/* Sync Notice */}
           <div style={{
             display: 'flex',
@@ -212,9 +267,19 @@ export const RescheduleModal: React.FC<Props> = ({
             <button type="button" className="btn-secondary" onClick={onClose}>
               Close
             </button>
-            <button type="button" className="btn-primary" onClick={handleConfirm}>
+            <button 
+              type="button" 
+              className="btn-primary" 
+              onClick={handleConfirm}
+              disabled={conflictResult.hasConflict}
+              style={{
+                backgroundColor: conflictResult.hasConflict ? '#94A3B8' : undefined,
+                cursor: conflictResult.hasConflict ? 'not-allowed' : 'pointer',
+                borderColor: conflictResult.hasConflict ? '#94A3B8' : undefined
+              }}
+            >
               <RefreshCw size={15} />
-              <span>Apply &amp; Synchronize</span>
+              <span>{conflictResult.hasConflict ? 'Conflict: Resolve First' : 'Apply & Synchronize'}</span>
             </button>
           </div>
         </div>

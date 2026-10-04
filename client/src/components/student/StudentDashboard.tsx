@@ -6,7 +6,8 @@ import {
   LogOut, 
   Menu, 
   X, 
-  GraduationCap 
+  GraduationCap,
+  Bell
 } from 'lucide-react';
 import './StudentDashboard.css';
 import type { Lecture } from '../../data/mockData';
@@ -18,10 +19,12 @@ import {
   getAssignedTeachersForStudent 
 } from '../../data/timetableData';
 import { timetableStore, LectureChangeAlert } from '../../data/timetableStore';
+import { getUserProfile, subscribeUserProfile } from '../../data/userProfileStore';
 
 import { StudentHomeView } from './views/StudentHomeView';
 import { StudentTimetableView } from './views/StudentTimetableView';
 import { StudentProfileView } from './views/StudentProfileView';
+import { NotificationDrawer } from '../common/NotificationDrawer';
 
 interface Props {
   studentEmail?: string;
@@ -34,11 +37,16 @@ export const StudentDashboard: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<string>('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState<boolean>(false);
 
   // Dynamically resolve student profile from any query (email, ID, or name)
   const activeStudent: Student = useMemo(() => {
     return findStudentByQuery(studentEmail) || STUDENTS_DATA[0];
   }, [studentEmail]);
+
+  const studentDivKey = useMemo(() => {
+    return `${activeStudent.course}_${activeStudent.year}_${activeStudent.division}`;
+  }, [activeStudent]);
 
   // Master conflict-free timetable for this student's exact division from timetableStore
   const [lectures, setLectures] = useState<Lecture[]>(() => {
@@ -47,16 +55,31 @@ export const StudentDashboard: React.FC<Props> = ({
   const [alerts, setAlerts] = useState<LectureChangeAlert[]>(() => {
     return timetableStore.getAlertsForStudent(activeStudent);
   });
+  const [historyAlerts, setHistoryAlerts] = useState(() => {
+    return timetableStore.getAllAlertsHistory('student', studentDivKey);
+  });
+
+  // Custom user profile from userProfileStore (avatar, contact, password)
+  const [profileData, setProfileData] = useState(() => {
+    return getUserProfile(activeStudent.email || activeStudent.id);
+  });
 
   useEffect(() => {
     const update = () => {
       setLectures(timetableStore.getLecturesForStudent(activeStudent));
       setAlerts(timetableStore.getAlertsForStudent(activeStudent));
+      setHistoryAlerts(timetableStore.getAllAlertsHistory('student', studentDivKey));
     };
     update();
-    const unsub = timetableStore.subscribe(update);
-    return unsub;
-  }, [activeStudent]);
+    const unsubTimetable = timetableStore.subscribe(update);
+    const unsubProfile = subscribeUserProfile(() => {
+      setProfileData(getUserProfile(activeStudent.email || activeStudent.id));
+    });
+    return () => {
+      unsubTimetable();
+      unsubProfile();
+    };
+  }, [activeStudent, studentDivKey]);
 
   // Registered curriculum subjects for this course & year
   const studentSubjects: string[] = useMemo(() => {
@@ -156,14 +179,53 @@ export const StudentDashboard: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="topbar-right">
+          <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              className="icon-button" 
+              title="Schedule Change Alerts & History"
+              onClick={() => setIsNotificationDrawerOpen(true)}
+              style={{ position: 'relative' }}
+            >
+              <Bell size={18} />
+              {historyAlerts.active.length > 0 && (
+                <span 
+                  style={{
+                    position: 'absolute',
+                    top: '-3px',
+                    right: '-3px',
+                    background: '#EF4444',
+                    color: '#FFFFFF',
+                    borderRadius: '10px',
+                    padding: '1px 6px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    lineHeight: '13px',
+                    boxShadow: '0 2px 5px rgba(239, 68, 68, 0.4)',
+                    border: '1.5px solid #FFFFFF'
+                  }}
+                >
+                  {historyAlerts.active.length}
+                </span>
+              )}
+            </button>
+
             <div 
               className="student-profile-pill" 
               onClick={() => setActiveTab('profile')} 
               style={{ cursor: 'pointer' }}
               title="View Student Profile"
             >
-              <div className="student-profile-avatar">{studentInitials}</div>
+              <div 
+                className="student-profile-avatar"
+                style={profileData.avatarUrl ? {
+                  backgroundImage: `url(${profileData.avatarUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  color: 'transparent'
+                } : {}}
+              >
+                {!profileData.avatarUrl && studentInitials}
+              </div>
               <div className="profile-info">
                 <span className="profile-name">Hi, {activeStudent.name.split(' ')[0]} 👋</span>
                 <span className="profile-subtitle">{activeStudent.course} &bull; {activeStudent.year} (Div {activeStudent.division}) &bull; {activeStudent.classroom}</span>
@@ -217,6 +279,19 @@ export const StudentDashboard: React.FC<Props> = ({
           ))}
         </nav>
       </div>
+
+      {/* Bell Notification Drawer for Alert History & Dismissed Alerts */}
+      <NotificationDrawer
+        isOpen={isNotificationDrawerOpen}
+        onClose={() => setIsNotificationDrawerOpen(false)}
+        activeAlerts={historyAlerts.active}
+        dismissedAlerts={historyAlerts.dismissed}
+        onDismissAlert={(id) => timetableStore.dismissAlert(id)}
+        onRestoreAlert={(id) => timetableStore.restoreAlert(id)}
+        onMarkAllAsRead={() => timetableStore.markAllAlertsAsDismissed('student', studentDivKey)}
+        role="student"
+        userName={activeStudent.name}
+      />
     </div>
   );
 };
