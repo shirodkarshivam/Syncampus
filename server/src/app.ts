@@ -1,6 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import routes from './routes/index.js';
 import { ENV } from './config/env.js';
 
@@ -20,7 +21,8 @@ export const createApp = (): Express => {
     })
   );
 
-  // Body Parsing
+  // Cookie and Body Parsing
+  app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

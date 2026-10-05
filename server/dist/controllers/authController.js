@@ -1,5 +1,5 @@
 import { authService } from '../services/authService.js';
-import { validateLoginInput, validateChangePasswordInput, validateRefreshTokenInput, } from '../validators/authValidators.js';
+import { validateLoginInput, validateChangePasswordInput, } from '../validators/authValidators.js';
 export class AuthController {
     /**
      * POST /api/v1/auth/login
@@ -13,9 +13,17 @@ export class AuthController {
             });
             return;
         }
-        const { identifier, password } = req.body;
+        const { identifier, password, requestedRole } = req.body;
         try {
-            const result = await authService.login(identifier, password);
+            const result = await authService.login(identifier, password, requestedRole);
+            // Set HTTP-only secure cookie for refresh token
+            res.cookie('refreshToken', result.refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                path: '/',
+            });
             res.status(200).json(result);
         }
         catch (err) {
@@ -49,16 +57,24 @@ export class AuthController {
      * POST /api/v1/auth/refresh
      */
     async refresh(req, res) {
-        const validation = validateRefreshTokenInput(req.body);
-        if (!validation.isValid) {
+        const rawToken = req.body?.refreshToken || req.cookies?.refreshToken;
+        if (!rawToken || typeof rawToken !== 'string') {
             res.status(400).json({
                 error: 'Bad Request',
-                message: validation.error,
+                message: 'Refresh token is required via request body or HTTP-only cookie',
             });
             return;
         }
         try {
-            const result = await authService.refresh(req.body.refreshToken);
+            const result = await authService.refresh(rawToken);
+            // Rotate cookie
+            res.cookie('refreshToken', result.refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000,
+                path: '/',
+            });
             res.status(200).json(result);
         }
         catch (err) {
@@ -72,13 +88,18 @@ export class AuthController {
      * POST /api/v1/auth/logout
      */
     async logout(req, res) {
+        const token = req.body?.refreshToken || req.cookies?.refreshToken;
         try {
-            await authService.logout(req.body?.refreshToken);
+            if (token) {
+                await authService.logout(token);
+            }
+            res.clearCookie('refreshToken', { path: '/' });
             res.status(200).json({
                 message: 'Logged out successfully',
             });
         }
         catch {
+            res.clearCookie('refreshToken', { path: '/' });
             res.status(200).json({
                 message: 'Logged out successfully',
             });

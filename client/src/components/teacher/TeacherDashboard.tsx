@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Home, 
   Calendar, 
@@ -18,6 +18,12 @@ import type { TeacherProfile } from '../../data/teachersData';
 import { getLecturesForTeacherId } from '../../data/timetableData';
 import { timetableStore, LectureChangeAlert } from '../../data/timetableStore';
 import { getUserProfile, subscribeUserProfile } from '../../data/userProfileStore';
+import { timetableApi } from '../../services/timetableApi';
+import { 
+  subscribeToTimetableEvents, 
+  onRealtimeReconnect, 
+  TimetableRealtimeEvent 
+} from '../../services/realtime';
 
 import { TeacherHomeView } from './views/TeacherHomeView';
 import { TeacherTimetableView } from './views/TeacherTimetableView';
@@ -42,6 +48,8 @@ export const TeacherDashboard: React.FC<Props> = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isLoadingTimetable, setIsLoadingTimetable] = useState<boolean>(true);
+  const [timetableError, setTimetableError] = useState<string | null>(null);
 
   // Dynamically resolve teacher profile from any query (email, ID, or name)
   const activeTeacher: TeacherProfile = useMemo(() => {
@@ -61,21 +69,106 @@ export const TeacherDashboard: React.FC<Props> = ({
     return getUserProfile(activeTeacher.email || activeTeacher.id);
   });
 
-  useEffect(() => {
-    const update = () => {
-      setMyLectures(timetableStore.getLecturesForTeacherId(activeTeacher.id, activeTeacher.name));
+  // Authoritative Teacher Timetable Fetcher & Refresher
+  const refreshTeacherTimetable = useCallback(async () => {
+    try {
+      const data = await timetableApi.getTeacherTimetable(activeTeacher.id);
+      setMyLectures(data);
+      timetableStore.setLectures(data);
       setHistoryAlerts(timetableStore.getAllAlertsHistory('teacher', activeTeacher.id, activeTeacher.name));
-    };
-    update();
-    const unsubTimetable = timetableStore.subscribe(update);
+      return data;
+    } catch (err: any) {
+      console.warn('Backend teacher timetable fetch error, falling back to cache:', err);
+      const fallback = timetableStore.getLecturesForTeacherId(activeTeacher.id, activeTeacher.name);
+      if (fallback.length > 0) {
+        setMyLectures(fallback);
+      }
+      throw err;
+    }
+  }, [activeTeacher.id, activeTeacher.name]);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingTimetable(true);
+    setTimetableError(null);
+
+    refreshTeacherTimetable()
+      .then(() => {
+        if (isMounted) setIsLoadingTimetable(false);
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setTimetableError(err.message || 'Failed to load teacher schedule');
+          setIsLoadingTimetable(false);
+        }
+      });
+
+    const unsubTimetable = timetableStore.subscribe(() => {
+      setHistoryAlerts(timetableStore.getAllAlertsHistory('teacher', activeTeacher.id, activeTeacher.name));
+    });
     const unsubProfile = subscribeUserProfile(() => {
       setProfileData(getUserProfile(activeTeacher.email || activeTeacher.id));
     });
+
+    // Real-Time Socket.IO event subscription for faculty schedule updates
+    const unsubRealtime = subscribeToTimetableEvents((event: TimetableRealtimeEvent) => {
+      console.log(`[TeacherDashboard] Received real-time timetable event: ${event.eventType}`, event);
+
+      // Check if event targets this teacher or their teaching division
+      const affectsTeacher =
+        event.teacherId === activeTeacher.id ||
+        event.substituteTeacherId === activeTeacher.id ||
+        myLectures.some(l => l.id === event.lectureId || l.divisionKey === event.divisionKey);
+
+      if (!affectsTeacher) {
+        return;
+      }
+
+      // Re-fetch authoritative teacher schedule from backend
+      refreshTeacherTimetable().catch(console.warn);
+
+      // If action was initiated by another session/admin, record alert & notify
+      const isInitiator = event.changedByUserId === activeTeacher.id;
+      if (!isInitiator) {
+        let alertType: 'cancelled' | 'rescheduled' | 'teacher_changed' | 'room_changed' = 'cancelled';
+        if (event.eventType === 'timetable:lecture_cancelled') alertType = 'cancelled';
+        else if (event.eventType === 'timetable:lecture_rescheduled') alertType = 'rescheduled';
+        else if (event.eventType === 'timetable:lecture_room_changed') alertType = 'room_changed';
+        else if (event.eventType === 'timetable:lecture_teacher_changed') alertType = 'teacher_changed';
+
+        timetableStore.recordAlert({
+          lectureId: event.lectureId,
+          type: alertType,
+          course: event.course || 'Curriculum',
+          year: event.year || 'FY',
+          division: event.division || 'A',
+          divisionKey: event.divisionKey || `${event.course}_${event.year}_${event.division}`,
+          subject: event.subjectName || 'Lecture',
+          oldValue: event.oldValue,
+          newValue: event.newValue,
+          reason: event.reason,
+          triggeredBy: event.changedByName || event.changedByRole || 'Admin / Faculty',
+        });
+
+        const actionWord = event.eventType.replace('timetable:lecture_', '').replace('_', ' ');
+        showToast(`Schedule Update: ${event.subjectName || 'Lecture'} ${actionWord}`);
+      }
+    });
+
+    // Reconnection resynchronization
+    const unsubReconnect = onRealtimeReconnect(() => {
+      console.log('[TeacherDashboard] Realtime connection restored, fetching authoritative schedule...');
+      refreshTeacherTimetable().catch(console.warn);
+    });
+
     return () => {
+      isMounted = false;
       unsubTimetable();
       unsubProfile();
+      unsubRealtime();
+      unsubReconnect();
     };
-  }, [activeTeacher]);
+  }, [activeTeacher, refreshTeacherTimetable, myLectures]);
 
   // Modal target states
   const [cancelModalLecture, setCancelModalLecture] = useState<Lecture | null>(null);
@@ -87,31 +180,92 @@ export const TeacherDashboard: React.FC<Props> = ({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Handlers for Teacher Actions - Synchronized with timetableStore
-  const handleConfirmCancel = (id: string, reason: string) => {
-    const cancelled = timetableStore.cancelLecture(id, reason, activeTeacher.title);
-    if (cancelled) {
+  // Handlers for Teacher Actions - Direct backend API integration with conflict protection
+  const handleConfirmCancel = async (id: string, reason: string) => {
+    try {
+      const cancelled = await timetableApi.cancelLecture(id, reason);
+      await refreshTeacherTimetable();
+      timetableStore.recordAlert({
+        lectureId: id,
+        type: 'cancelled',
+        course: cancelled.course,
+        year: cancelled.year || 'FY',
+        division: cancelled.division,
+        divisionKey: cancelled.divisionKey || `${cancelled.course}_${cancelled.year || 'FY'}_${cancelled.division}`,
+        subject: cancelled.subject,
+        oldValue: `${cancelled.day} • ${cancelled.time} (${cancelled.room})`,
+        newValue: 'Lecture Cancelled',
+        reason,
+        triggeredBy: activeTeacher.title
+      });
       showToast(`Lecture "${cancelled.subject}" cancelled (${reason}). Affected students notified.`);
+    } catch (err: any) {
+      console.error('Cancel lecture error:', err);
+      showToast(`⚠️ Error: ${err.message || 'Failed to cancel lecture'}`);
     }
   };
 
-  const handleConfirmReschedule = (id: string, newTime: string, newRoom: string) => {
-    const updated = timetableStore.rescheduleLecture(id, newTime, newRoom, undefined, undefined, activeTeacher.title);
-    if (updated) {
-      showToast(`Rescheduled to ${newTime} in ${newRoom}. Central timetable & students synchronized.`);
-    } else {
-      const err = timetableStore.getLastError() || 'Schedule slot or room conflict detected.';
-      showToast(`⚠️ Conflict: ${err}`);
+  const handleConfirmReschedule = async (id: string, newTime: string, newRoom: string) => {
+    try {
+      const targetLec = myLectures.find(l => l.id === id);
+      const targetDay = targetLec?.day || 'Monday';
+
+      const updated = await timetableApi.rescheduleLecture(id, {
+        dayOfWeek: targetDay,
+        timeString: newTime,
+        reason: 'Faculty timetable adjustment'
+      });
+
+      // If room also changed, update classroom on server
+      if (newRoom && targetLec && newRoom !== targetLec.room) {
+        await timetableApi.changeLectureRoom(id, newRoom, 'Room relocation during reschedule');
+      }
+
+      await refreshTeacherTimetable();
+      timetableStore.recordAlert({
+        lectureId: id,
+        type: 'rescheduled',
+        course: updated.course,
+        year: updated.year || 'FY',
+        division: updated.division,
+        divisionKey: updated.divisionKey || `${updated.course}_${updated.year || 'FY'}_${updated.division}`,
+        subject: updated.subject,
+        oldValue: `${targetLec?.time || ''} • ${targetLec?.room || ''}`,
+        newValue: `${newTime} • ${newRoom}`,
+        reason: 'Timetable adjustment',
+        triggeredBy: activeTeacher.title
+      });
+      showToast(`Rescheduled to ${newTime} in ${newRoom}. Central timetable synchronized.`);
+    } catch (err: any) {
+      console.error('Reschedule lecture error:', err);
+      const conflictMsg = err.details?.conflicts?.[0]?.message || err.message || 'Schedule slot or room conflict detected.';
+      showToast(`⚠️ Conflict: ${conflictMsg}`);
     }
   };
 
-  const handleConfirmChangeRoom = (id: string, newRoom: string) => {
-    const updated = timetableStore.changeRoom(id, newRoom, activeTeacher.title);
-    if (updated) {
-      showToast(`Classroom updated to ${newRoom}. Students notified automatically.`);
-    } else {
-      const err = timetableStore.getLastError() || `Room ${newRoom} is already occupied at this time.`;
-      showToast(`⚠️ Cannot Change Room: ${err}`);
+  const handleConfirmChangeRoom = async (id: string, newRoom: string) => {
+    try {
+      const targetLec = myLectures.find(l => l.id === id);
+      const updated = await timetableApi.changeLectureRoom(id, newRoom, 'Room relocation requested by faculty');
+      await refreshTeacherTimetable();
+      timetableStore.recordAlert({
+        lectureId: id,
+        type: 'room_changed',
+        course: updated.course,
+        year: updated.year || 'FY',
+        division: updated.division,
+        divisionKey: updated.divisionKey || `${updated.course}_${updated.year || 'FY'}_${updated.division}`,
+        subject: updated.subject,
+        oldValue: `Classroom: ${targetLec?.room || ''}`,
+        newValue: `Relocated to: ${newRoom}`,
+        reason: 'Room relocation',
+        triggeredBy: activeTeacher.title
+      });
+      showToast(`Classroom updated to ${newRoom}. Authoritative schedule synchronized.`);
+    } catch (err: any) {
+      console.error('Change room error:', err);
+      const conflictMsg = err.details?.message || err.message || `Room ${newRoom} is already occupied at this time.`;
+      showToast(`⚠️ Cannot Change Room: ${conflictMsg}`);
     }
   };
 
@@ -273,37 +427,46 @@ export const TeacherDashboard: React.FC<Props> = ({
 
         {/* Dynamic View */}
         <div className="teacher-content-area">
-          {activeTab === 'home' && (
-            <TeacherHomeView
-              teacher={activeTeacher}
-              lectures={myLectures}
-              defaultDay={defaultAcademicDay}
-              onOpenCancel={(lec) => setCancelModalLecture(lec)}
-              onOpenReschedule={(lec) => setRescheduleModalLecture(lec)}
-              onOpenChangeRoom={(lec) => setChangeRoomModalLecture(lec)}
-              onNavigateToTimetable={() => setActiveTab('timetable')}
-            />
-          )}
+          {isLoadingTimetable && myLectures.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', gap: '12px' }}>
+              <div style={{ width: '28px', height: '28px', border: '3px solid #E2E8F0', borderTopColor: '#2563EB', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: 500 }}>Loading official faculty schedule...</div>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'home' && (
+                <TeacherHomeView
+                  teacher={activeTeacher}
+                  lectures={myLectures}
+                  defaultDay={defaultAcademicDay}
+                  onOpenCancel={(lec) => setCancelModalLecture(lec)}
+                  onOpenReschedule={(lec) => setRescheduleModalLecture(lec)}
+                  onOpenChangeRoom={(lec) => setChangeRoomModalLecture(lec)}
+                  onNavigateToTimetable={() => setActiveTab('timetable')}
+                />
+              )}
 
-          {activeTab === 'timetable' && (
-            <TeacherTimetableView
-              lectures={myLectures}
-              onOpenCancel={(lec) => setCancelModalLecture(lec)}
-              onOpenReschedule={(lec) => setRescheduleModalLecture(lec)}
-              onOpenChangeRoom={(lec) => setChangeRoomModalLecture(lec)}
-            />
-          )}
+              {activeTab === 'timetable' && (
+                <TeacherTimetableView
+                  lectures={myLectures}
+                  onOpenCancel={(lec) => setCancelModalLecture(lec)}
+                  onOpenReschedule={(lec) => setRescheduleModalLecture(lec)}
+                  onOpenChangeRoom={(lec) => setChangeRoomModalLecture(lec)}
+                />
+              )}
 
-          {activeTab === 'classes' && (
-            <TeacherClassesView teacher={activeTeacher} />
-          )}
+              {activeTab === 'classes' && (
+                <TeacherClassesView teacher={activeTeacher} />
+              )}
 
-          {activeTab === 'profile' && (
-            <TeacherProfileView 
-              teacher={activeTeacher}
-              email={activeTeacher.email} 
-              onLogout={onLogout} 
-            />
+              {activeTab === 'profile' && (
+                <TeacherProfileView 
+                  teacher={activeTeacher}
+                  email={activeTeacher.email} 
+                  onLogout={onLogout} 
+                />
+              )}
+            </>
           )}
         </div>
       </div>

@@ -32433,6 +32433,22 @@ export function findStudentByQuery(query: string): Student | undefined {
   if (!query) return undefined;
   const q = query.trim().toLowerCase();
 
+  // Special developer user resolution
+  if (q === 'shirodkarshivam068@gmail.com' || q === 'stu-shivam' || q === 'shivam shirodkar') {
+    return {
+      id: 'STU-SHIVAM',
+      name: 'Shivam Shirodkar',
+      department: 'Science & Technology',
+      course: 'BSc IT',
+      year: 'FY',
+      division: 'A',
+      classroom: 'Room 101',
+      batch: 'A1',
+      email: 'shirodkarshivam068@gmail.com',
+      status: 'Enrolled',
+    };
+  }
+
   // 1. Exact college email match
   let found = STUDENTS_DATA.find(s => s.email.toLowerCase() === q);
   if (found) return found;

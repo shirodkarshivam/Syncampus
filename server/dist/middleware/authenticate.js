@@ -40,12 +40,26 @@ export async function authenticate(req, res, next) {
             }
         }
         if (!user) {
-            // In offline/mock mode, construct authenticated user from valid verified JWT payload
+            // In offline/mock mode, construct authenticated user from valid verified JWT payload and fallback lookup
+            const { findFallbackUser } = await import('../data/authFallback.js');
+            const fb = findFallbackUser(payload.identifier) || findFallbackUser(payload.sub);
             user = {
                 id: payload.sub,
                 email: payload.email,
                 identifier: payload.identifier,
                 role: payload.role,
+                student: fb?.role === 'STUDENT' ? {
+                    id: fb.id,
+                    studentId: fb.identifier,
+                    fullName: fb.name,
+                    divisionId: fb.division || '',
+                } : null,
+                teacher: fb?.role === 'TEACHER' ? {
+                    id: fb.id,
+                    teacherId: fb.identifier,
+                    fullName: fb.name,
+                    departmentId: fb.department || '',
+                } : null,
             };
         }
         if (!user) {

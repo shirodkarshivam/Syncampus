@@ -1180,6 +1180,22 @@ export const TEACHERS_DATA: TeacherProfile[] = [
 export function findTeacherByQuery(query: string): TeacherProfile | undefined {
   if (!query) return undefined;
   const clean = query.trim().toLowerCase();
+
+  // Special developer user resolution
+  if (clean === 'shirodkarshivam068@gmail.com' || clean === 't-shivam' || clean === 'prof. shivam shirodkar' || clean === 'shivam shirodkar') {
+    return {
+      id: 'T001',
+      name: 'Shivam Shirodkar',
+      title: 'Prof. Shivam Shirodkar',
+      department: 'Science & Technology',
+      departmentCode: 'SCI_TECH',
+      subjects: ['Database Management Systems', 'Web Development', 'Python Programming', 'Software Engineering'],
+      email: 'shirodkarshivam068@gmail.com',
+      room: 'Faculty Cabin T-SHIVAM',
+      status: 'Active',
+    };
+  }
+
   return TEACHERS_DATA.find(t => {
     if (t.id.toLowerCase() === clean) return true;
     if (t.email.toLowerCase() === clean) return true;

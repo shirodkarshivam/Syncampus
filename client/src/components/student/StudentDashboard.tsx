@@ -7,7 +7,8 @@ import {
   Menu, 
   X, 
   GraduationCap,
-  Bell
+  Bell,
+  CheckCircle2
 } from 'lucide-react';
 import './StudentDashboard.css';
 import type { Lecture } from '../../data/mockData';
@@ -20,6 +21,12 @@ import {
 } from '../../data/timetableData';
 import { timetableStore, LectureChangeAlert } from '../../data/timetableStore';
 import { getUserProfile, subscribeUserProfile } from '../../data/userProfileStore';
+import { timetableApi } from '../../services/timetableApi';
+import { 
+  subscribeToTimetableEvents, 
+  onRealtimeReconnect, 
+  TimetableRealtimeEvent 
+} from '../../services/realtime';
 
 import { StudentHomeView } from './views/StudentHomeView';
 import { StudentTimetableView } from './views/StudentTimetableView';
@@ -38,6 +45,9 @@ export const StudentDashboard: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<string>('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState<boolean>(false);
+  const [isLoadingTimetable, setIsLoadingTimetable] = useState<boolean>(true);
+  const [timetableError, setTimetableError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Dynamically resolve student profile from any query (email, ID, or name)
   const activeStudent: Student = useMemo(() => {
@@ -48,7 +58,7 @@ export const StudentDashboard: React.FC<Props> = ({
     return `${activeStudent.course}_${activeStudent.year}_${activeStudent.division}`;
   }, [activeStudent]);
 
-  // Master conflict-free timetable for this student's exact division from timetableStore
+  // Master conflict-free timetable loaded authoritatively from backend
   const [lectures, setLectures] = useState<Lecture[]>(() => {
     return timetableStore.getLecturesForStudent(activeStudent);
   });
@@ -64,20 +74,116 @@ export const StudentDashboard: React.FC<Props> = ({
     return getUserProfile(activeStudent.email || activeStudent.id);
   });
 
+  // Authoritative Backend Timetable Fetch
   useEffect(() => {
-    const update = () => {
-      setLectures(timetableStore.getLecturesForStudent(activeStudent));
+    let isMounted = true;
+    setIsLoadingTimetable(true);
+    setTimetableError(null);
+
+    timetableApi.getStudentTimetable()
+      .then((backendLectures) => {
+        if (!isMounted) return;
+        setLectures(backendLectures);
+        timetableStore.setLectures(backendLectures);
+        setAlerts(timetableStore.getAlertsForStudent(activeStudent));
+        setHistoryAlerts(timetableStore.getAllAlertsHistory('student', studentDivKey));
+        setIsLoadingTimetable(false);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.warn('Backend student timetable load error, checking in-memory fallback:', err);
+        const fallback = timetableStore.getLecturesForStudent(activeStudent);
+        if (fallback.length > 0) {
+          setLectures(fallback);
+        }
+        setTimetableError(err.message || 'Failed to load timetable from server');
+        setIsLoadingTimetable(false);
+      });
+
+    const unsubTimetable = timetableStore.subscribe(() => {
       setAlerts(timetableStore.getAlertsForStudent(activeStudent));
       setHistoryAlerts(timetableStore.getAllAlertsHistory('student', studentDivKey));
-    };
-    update();
-    const unsubTimetable = timetableStore.subscribe(update);
+    });
     const unsubProfile = subscribeUserProfile(() => {
       setProfileData(getUserProfile(activeStudent.email || activeStudent.id));
     });
+
+    // Real-Time Socket.IO event subscription for instant targeted synchronization
+    const unsubRealtime = subscribeToTimetableEvents((event: TimetableRealtimeEvent) => {
+      console.log(`[StudentDashboard] Received real-time timetable event: ${event.eventType}`, event);
+
+      // Re-fetch authoritative student timetable from backend REST API
+      timetableApi.getStudentTimetable()
+        .then((updatedLectures) => {
+          if (!isMounted) return;
+          setLectures(updatedLectures);
+          timetableStore.setLectures(updatedLectures);
+        })
+        .catch((err) => {
+          console.warn('[StudentDashboard] Error refreshing student timetable on real-time event:', err);
+        });
+
+      // Map event to student notification drawer alert
+      let alertType: 'cancelled' | 'rescheduled' | 'teacher_changed' | 'room_changed' = 'cancelled';
+      if (event.eventType === 'timetable:lecture_cancelled') alertType = 'cancelled';
+      else if (event.eventType === 'timetable:lecture_rescheduled') alertType = 'rescheduled';
+      else if (event.eventType === 'timetable:lecture_room_changed') alertType = 'room_changed';
+      else if (event.eventType === 'timetable:lecture_teacher_changed') alertType = 'teacher_changed';
+
+      timetableStore.recordAlert({
+        lectureId: event.lectureId,
+        type: alertType,
+        course: event.course || activeStudent.course,
+        year: event.year || activeStudent.year,
+        division: event.division || activeStudent.division,
+        divisionKey: event.divisionKey || studentDivKey,
+        subject: event.subjectName || 'Curriculum Lecture',
+        oldValue: event.oldValue,
+        newValue: event.newValue,
+        reason: event.reason,
+        triggeredBy: event.changedByName || event.changedByRole || 'Faculty / Administration',
+      });
+
+      // Display live notification banner
+      let notice = 'Timetable Updated';
+      if (event.eventType === 'timetable:lecture_cancelled') {
+        notice = `${event.subjectName || 'Lecture'} at ${event.timeSlot || 'scheduled time'} has been cancelled.`;
+      } else if (event.eventType === 'timetable:lecture_rescheduled') {
+        notice = `${event.subjectName || 'Lecture'} rescheduled: ${event.newValue || 'new slot'}`;
+      } else if (event.eventType === 'timetable:lecture_room_changed') {
+        notice = `Room changed to ${event.newValue || 'new room'} for ${event.subjectName || 'Lecture'}`;
+      } else if (event.eventType === 'timetable:lecture_teacher_changed') {
+        notice = `Faculty updated to ${event.newValue || 'Substitute'} for ${event.subjectName || 'Lecture'}`;
+      } else if (event.eventType === 'timetable:lecture_created') {
+        notice = `Extra lecture scheduled: ${event.subjectName || 'Lecture'} (${event.timeSlot || ''})`;
+      } else if (event.eventType === 'timetable:lecture_deleted') {
+        notice = `Lecture removed from schedule: ${event.subjectName || 'Lecture'}`;
+      }
+
+      setToastMessage(notice);
+      setTimeout(() => {
+        if (isMounted) setToastMessage(null);
+      }, 5000);
+    });
+
+    // Reconnection resynchronization
+    const unsubReconnect = onRealtimeReconnect(() => {
+      console.log('[StudentDashboard] Realtime connection restored, fetching authoritative schedule...');
+      timetableApi.getStudentTimetable()
+        .then((updated) => {
+          if (!isMounted) return;
+          setLectures(updated);
+          timetableStore.setLectures(updated);
+        })
+        .catch(console.warn);
+    });
+
     return () => {
+      isMounted = false;
       unsubTimetable();
       unsubProfile();
+      unsubRealtime();
+      unsubReconnect();
     };
   }, [activeStudent, studentDivKey]);
 
@@ -236,32 +342,41 @@ export const StudentDashboard: React.FC<Props> = ({
 
         {/* Dynamic View Body */}
         <div className="student-content-area">
-          {activeTab === 'home' && (
-            <StudentHomeView
-              student={activeStudent}
-              lectures={lectures}
-              alerts={alerts}
-              onDismissAlert={(id) => timetableStore.dismissAlert(id)}
-              defaultDay={defaultAcademicDay}
-              onNavigate={(tab) => setActiveTab(tab)}
-            />
-          )}
+          {isLoadingTimetable && lectures.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', gap: '12px' }}>
+              <div style={{ width: '28px', height: '28px', border: '3px solid #E2E8F0', borderTopColor: '#2563EB', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: 500 }}>Loading official division timetable...</div>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'home' && (
+                <StudentHomeView
+                  student={activeStudent}
+                  lectures={lectures}
+                  alerts={alerts}
+                  onDismissAlert={(id) => timetableStore.dismissAlert(id)}
+                  defaultDay={defaultAcademicDay}
+                  onNavigate={(tab) => setActiveTab(tab)}
+                />
+              )}
 
-          {activeTab === 'timetable' && (
-            <StudentTimetableView 
-              lectures={lectures} 
-              student={activeStudent} 
-            />
-          )}
+              {activeTab === 'timetable' && (
+                <StudentTimetableView 
+                  lectures={lectures} 
+                  student={activeStudent} 
+                />
+              )}
 
-          {activeTab === 'profile' && (
-            <StudentProfileView 
-              student={activeStudent}
-              email={activeStudent.email}
-              subjects={studentSubjects}
-              assignedTeachers={assignedTeachers}
-              onLogout={onLogout} 
-            />
+              {activeTab === 'profile' && (
+                <StudentProfileView 
+                  student={activeStudent}
+                  email={activeStudent.email}
+                  subjects={studentSubjects}
+                  assignedTeachers={assignedTeachers}
+                  onLogout={onLogout} 
+                />
+              )}
+            </>
           )}
         </div>
 
@@ -279,6 +394,30 @@ export const StudentDashboard: React.FC<Props> = ({
           ))}
         </nav>
       </div>
+
+      {/* Real-time Timetable Notification Toast */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          background: '#0F172A',
+          color: '#F8FAFC',
+          border: '1px solid #10B981',
+          borderRadius: '8px',
+          padding: '12px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5), 0 0 15px rgba(16, 185, 129, 0.2)',
+          zIndex: 9999,
+          animation: 'slideUp 0.3s ease',
+          fontFamily: 'Inter, system-ui, sans-serif'
+        }}>
+          <CheckCircle2 size={18} color="#10B981" />
+          <span style={{ fontSize: '13px', fontWeight: 500 }}>{toastMessage}</span>
+        </div>
+      )}
 
       {/* Bell Notification Drawer for Alert History & Dismissed Alerts */}
       <NotificationDrawer

@@ -1,9 +1,7 @@
-import { INITIAL_ALL_LECTURES, ScheduledLecture, MASTER_TIMETABLE, toLectureFormat } from './timetableData';
 import type { Lecture } from './mockData';
 import type { Student } from './studentsData';
 
-const STORAGE_KEY_LECTURES = 'syncampus_master_timetable_v3';
-const STORAGE_KEY_ALERTS = 'syncampus_timetable_alerts_v3';
+import { timetableApi, TimetableFilters } from '../services/timetableApi';
 
 export interface LectureChangeAlert {
   id: string;
@@ -34,7 +32,20 @@ export interface ConflictCheckResult {
   conflicts: ScheduleConflict[];
 }
 
-// In-memory cache
+const STORAGE_KEY_ALERTS = 'syncampus_timetable_alerts_v3';
+
+// One-time cleanup of obsolete localStorage timetable keys to enforce backend authority
+if (typeof window !== 'undefined') {
+  try {
+    localStorage.removeItem('syncampus_master_timetable_v3');
+    localStorage.removeItem('syncampus_master_timetable_v2');
+    localStorage.removeItem('syncampus_master_timetable');
+  } catch {
+    // Ignore storage issues in sandbox
+  }
+}
+
+// In-memory cache - Authoritative data populated directly from backend APIs
 let lecturesCache: Lecture[] | null = null;
 let alertsCache: LectureChangeAlert[] | null = null;
 let lastStoreError: string | null = null;
@@ -55,11 +66,10 @@ function notifyListeners() {
   }
 }
 
-// Listen to storage event if other tabs/windows make changes
+// Listen to storage event only for user alerts/dismissals across tabs
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY_LECTURES || e.key === STORAGE_KEY_ALERTS) {
-      lecturesCache = null;
+    if (e.key === STORAGE_KEY_ALERTS) {
       alertsCache = null;
       notifyListeners();
     }
@@ -67,36 +77,14 @@ if (typeof window !== 'undefined') {
 }
 
 function loadLectures(): Lecture[] {
-  if (lecturesCache) return lecturesCache;
-  if (typeof window === 'undefined') return INITIAL_ALL_LECTURES;
-
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_LECTURES);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        lecturesCache = parsed;
-        return lecturesCache;
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to parse cached lectures, falling back to default', err);
-  }
-
-  lecturesCache = [...INITIAL_ALL_LECTURES];
-  saveLectures(lecturesCache);
-  return lecturesCache;
+  if (lecturesCache !== null) return lecturesCache;
+  // If not yet loaded from backend API, initialize empty or fallback
+  return [];
 }
 
 function saveLectures(lectures: Lecture[]) {
+  // In-memory update only - Authoritative source is backend database
   lecturesCache = lectures;
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(STORAGE_KEY_LECTURES, JSON.stringify(lectures));
-    } catch (err) {
-      console.error('Failed to save lectures to localStorage', err);
-    }
-  }
 }
 
 function loadAlerts(): LectureChangeAlert[] {
@@ -142,6 +130,50 @@ function createAlert(alert: Omit<LectureChangeAlert, 'id' | 'timestamp'>) {
 }
 
 export const timetableStore = {
+  // Authoritative Cache & Backend Synchronization
+  setLectures(lectures: Lecture[]) {
+    lecturesCache = [...lectures];
+    notifyListeners();
+  },
+
+  async fetchStudentTimetable(): Promise<Lecture[]> {
+    try {
+      const data = await timetableApi.getStudentTimetable();
+      this.setLectures(data);
+      return data;
+    } catch (err) {
+      console.error('Failed to fetch student timetable from backend:', err);
+      throw err;
+    }
+  },
+
+  async fetchTeacherTimetable(teacherId?: string): Promise<Lecture[]> {
+    try {
+      const data = await timetableApi.getTeacherTimetable(teacherId);
+      this.setLectures(data);
+      return data;
+    } catch (err) {
+      console.error('Failed to fetch teacher timetable from backend:', err);
+      throw err;
+    }
+  },
+
+  async fetchMasterTimetable(filters?: TimetableFilters): Promise<Lecture[]> {
+    try {
+      const res = await timetableApi.getMasterTimetable(filters);
+      this.setLectures(res.timetable);
+      return res.timetable;
+    } catch (err) {
+      console.error('Failed to fetch master timetable from backend:', err);
+      throw err;
+    }
+  },
+
+  recordAlert(alert: Omit<LectureChangeAlert, 'id' | 'timestamp'>) {
+    createAlert(alert);
+    notifyListeners();
+  },
+
   // Read operations
   getAllLectures(): Lecture[] {
     return loadLectures();
@@ -584,10 +616,10 @@ export const timetableStore = {
   },
 
   resetToDefaults(): void {
-    lecturesCache = [...INITIAL_ALL_LECTURES];
+    lecturesCache = [];
     alertsCache = [];
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEY_LECTURES);
+      localStorage.removeItem('syncampus_master_timetable_v3');
       localStorage.removeItem(STORAGE_KEY_ALERTS);
     }
     notifyListeners();

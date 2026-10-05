@@ -65,7 +65,7 @@ function loadFallbackTeachers(): FallbackUser[] {
   return cachedTeachers;
 }
 
-function loadFallbackStudents(): FallbackUser[] {
+export function loadFallbackStudents(): FallbackUser[] {
   if (cachedStudents) return cachedStudents;
   cachedStudents = [];
 
@@ -107,9 +107,59 @@ function loadFallbackStudents(): FallbackUser[] {
   return cachedStudents;
 }
 
-export function findFallbackUser(identifier: string): FallbackUser | null {
+export function findFallbackUser(identifier: string, requestedRole?: string): FallbackUser | null {
   const clean = identifier.trim();
   const lower = clean.toLowerCase();
+
+  // Special multi-role developer user access for Shivam Shirodkar
+  if (
+    lower === 'shirodkarshivam068@gmail.com' ||
+    clean === 'admin-user-SHIVAM' ||
+    clean === 'teach-user-SHIVAM' ||
+    clean === 'stu-user-SHIVAM' ||
+    clean === 'ADMIN-SHIVAM' ||
+    clean === 'T-SHIVAM' ||
+    clean === 'STU-SHIVAM'
+  ) {
+    const rolePref =
+      (requestedRole?.toUpperCase() as 'STUDENT' | 'TEACHER' | 'ADMIN') ||
+      (clean.includes('teach') || clean.includes('T-')
+        ? 'TEACHER'
+        : clean.includes('stu') || clean.includes('STU-')
+        ? 'STUDENT'
+        : 'ADMIN');
+
+    if (rolePref === 'TEACHER') {
+      return {
+        id: 'teach-user-SHIVAM',
+        identifier: 'T-SHIVAM',
+        email: 'shirodkarshivam068@gmail.com',
+        name: 'Prof. Shivam Shirodkar',
+        department: 'Science & Technology',
+        role: 'TEACHER',
+      };
+    }
+
+    if (rolePref === 'STUDENT') {
+      return {
+        id: 'stu-user-SHIVAM',
+        identifier: 'STU-SHIVAM',
+        email: 'shirodkarshivam068@gmail.com',
+        name: 'Shivam Shirodkar',
+        department: 'Science & Technology',
+        division: 'BSc IT_FY_A',
+        role: 'STUDENT',
+      };
+    }
+
+    return {
+      id: 'admin-user-SHIVAM',
+      identifier: 'ADMIN-SHIVAM',
+      email: 'shirodkarshivam068@gmail.com',
+      name: 'Shivam Shirodkar (Admin)',
+      role: 'ADMIN',
+    };
+  }
 
   if (lower === 'admin@syncampus.ac.in' || clean === 'ADMIN01') {
     return {

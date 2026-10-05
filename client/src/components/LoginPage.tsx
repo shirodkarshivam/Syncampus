@@ -13,13 +13,17 @@ import {
   UserCheck, 
   Building, 
   BookOpen, 
-  Users 
+  Users,
+  Lock,
+  AlertCircle 
 } from 'lucide-react';
 import './LoginPage.css';
 import { findTeacherByQuery, TEACHERS_DATA } from '../data/teachersData';
 import type { TeacherProfile } from '../data/teachersData';
 import { findStudentByQuery, STUDENTS_DATA } from '../data/studentsData';
 import type { Student } from '../data/studentsData';
+import { authApi, mapServerRoleToAppRole } from '../services/authApi';
+import type { AuthUser } from '../services/authApi';
 
 export type Role = 'student' | 'teacher' | 'admin';
 type Step = 'roles' | 'email' | 'otp' | 'success';
@@ -65,13 +69,16 @@ const ROLES: Record<Role, RoleConfig> = {
 };
 
 interface LoginPageProps {
-  onLoginSuccess?: (role: Role, email: string) => void;
+  onLoginSuccess?: (role: Role, email: string, user?: AuthUser) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [selectedRole, setSelectedRole] = useState<Role>('student');
   const [step, setStep] = useState<Step>('roles');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('password123');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [otp, setOtp] = useState(['1', '2', '3', '4', '5', '6']);
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -89,6 +96,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   // Popular quick-pick teachers for fast access
   const QUICK_TEACHERS = [
+    { name: 'Prof. Shivam Shirodkar', id: 'T-SHIVAM', email: 'shirodkarshivam068@gmail.com', dept: 'Science & Tech' },
     { name: 'Prof. Rahul Patil', id: 'T001', email: 'rahul.patil.t001@campus.edu', dept: 'Science & Tech' },
     { name: 'Prof. Neha Kulkarni', id: 'T004', email: 'neha.kulkarni.t004@campus.edu', dept: 'Science & Tech' },
     { name: 'Prof. Sneha Joshi', id: 'T002', email: 'sneha.joshi.t002@campus.edu', dept: 'Science & Tech' },
@@ -100,6 +108,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   // Popular quick-pick students for fast access
   const QUICK_STUDENTS = [
+    { name: 'Shivam Shirodkar', id: 'STU-SHIVAM', email: 'shirodkarshivam068@gmail.com', cohort: 'BSc IT FY Div A' },
     { name: 'Yash Pawar', id: 'STU0001', email: 'stu0001@sonopantcollege.edu.in', cohort: 'BSc IT FY Div A' },
     { name: 'Vedant Patil', id: 'STU0002', email: 'stu0002@sonopantcollege.edu.in', cohort: 'BSc IT FY Div A' },
     { name: 'Riya Chavan', id: 'STU0003', email: 'stu0003@sonopantcollege.edu.in', cohort: 'BSc IT FY Div A' },
@@ -205,16 +214,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const handleSelectRole = (role: Role) => {
     setSelectedRole(role);
+    setLoginError(null);
     setStep('email');
     if (role === 'teacher' && !email) {
-      setEmail('rahul.patil.t001@campus.edu');
+      setEmail('shirodkarshivam068@gmail.com');
     } else if (role === 'student' && !email) {
-      setEmail('stu0001@sonopantcollege.edu.in');
+      setEmail('shirodkarshivam068@gmail.com');
+    } else if (role === 'admin' && !email) {
+      setEmail('shirodkarshivam068@gmail.com');
     }
   };
 
   const handleSendOtp = (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError(null);
     let targetEmail = email.trim();
 
     if (selectedRole === 'teacher') {
@@ -223,7 +236,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         targetEmail = detected.email;
         setMatchedTeacher(detected);
       } else if (!targetEmail) {
-        targetEmail = 'rahul.patil.t001@campus.edu';
+        targetEmail = 'shirodkarshivam068@gmail.com';
         setMatchedTeacher(TEACHERS_DATA[0]);
       }
     } else if (selectedRole === 'student') {
@@ -232,7 +245,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         targetEmail = detected.email;
         setMatchedStudent(detected);
       } else if (!targetEmail) {
-        targetEmail = 'stu0001@sonopantcollege.edu.in';
+        targetEmail = 'shirodkarshivam068@gmail.com';
         setMatchedStudent(STUDENTS_DATA[0]);
       }
     } else if (!targetEmail) {
@@ -262,7 +275,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     let finalEmail = email.trim() || ROLES[selectedRole].emailPlaceholder;
 
@@ -278,10 +291,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       }
     }
 
-    if (onLoginSuccess) {
-      onLoginSuccess(selectedRole, finalEmail);
-    } else {
-      setStep('success');
+    setIsLoggingIn(true);
+    setLoginError(null);
+
+    try {
+      // Connect to real backend authentication with selected role
+      const user = await authApi.login(finalEmail, password, selectedRole);
+      const appRole = mapServerRoleToAppRole(user.role);
+
+      if (onLoginSuccess) {
+        onLoginSuccess(appRole, user.email || finalEmail, user);
+      } else {
+        setStep('success');
+      }
+    } catch (err: any) {
+      setLoginError(err.message || 'Invalid credentials. Please check your ID/email and password.');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -289,6 +315,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setEmail(teacher.email);
     setMatchedTeacher(teacher);
     setShowFacultyModal(false);
+    setLoginError(null);
     setOtp(['1', '2', '3', '4', '5', '6']);
     setStep('otp');
   };
@@ -297,16 +324,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setEmail(student.email);
     setMatchedStudent(student);
     setShowStudentModal(false);
+    setLoginError(null);
     setOtp(['1', '2', '3', '4', '5', '6']);
     setStep('otp');
   };
 
   const handleBackToRoles = () => {
+    setLoginError(null);
     setStep('roles');
     setOtp(['1', '2', '3', '4', '5', '6']);
   };
 
   const handleBackToEmail = () => {
+    setLoginError(null);
     setStep('email');
   };
 
@@ -577,6 +607,41 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     </div>
                   </div>
                 )}
+                {/* Account Password Field */}
+                <div className="input-group" style={{ marginTop: '16px' }}>
+                  <label className="input-label" htmlFor="password-input">
+                    Account Password
+                  </label>
+                  <div className="input-field-wrapper">
+                    <Lock size={18} className="input-icon" />
+                    <input
+                      id="password-input"
+                      type="password"
+                      className="text-input"
+                      placeholder="Default: password123"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {loginError && (
+                  <div style={{
+                    background: '#FEF2F2',
+                    border: '1px solid #FECACA',
+                    color: '#991B1B',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    marginTop: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                    <span>{loginError}</span>
+                  </div>
+                )}
               </div>
 
               <button 
@@ -735,11 +800,31 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <span>Demo Code <strong>123456</strong> auto-verified for testing</span>
               </div>
 
+              {loginError && (
+                <div style={{
+                  background: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  color: '#991B1B',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  textAlign: 'left'
+                }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
               <button 
                 type="submit" 
                 className={`role-button ${activeRoleConfig.colorClass}`}
+                disabled={isLoggingIn}
               >
-                <span>Verify &amp; Access Dashboard</span>
+                <span>{isLoggingIn ? 'Authenticating with Backend...' : 'Verify & Access Dashboard'}</span>
                 <ArrowRight size={18} className="btn-arrow" />
               </button>
 
