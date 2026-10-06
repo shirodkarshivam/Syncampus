@@ -64,8 +64,9 @@ export function initRealtime(tokenOverride?: string): Socket | null {
 
   currentToken = effectiveAuthKey;
 
-  // Connect via relative path to support both dev proxy and production host
-  socket = io('/', {
+  // Connect to hosted backend or dev proxy
+  const socketServerUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || '/';
+  socket = io(socketServerUrl, {
     path: '/socket.io',
     auth: { token: token || undefined, role: getDevRole(), identifier: getDevIdentifier() },
     reconnection: true,

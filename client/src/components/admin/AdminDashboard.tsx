@@ -26,6 +26,7 @@ import {
 } from '../../data/mockData';
 import { timetableStore } from '../../data/timetableStore';
 import { timetableApi } from '../../services/timetableApi';
+import { adminApi } from '../../services/adminApi';
 import { 
   subscribeToTimetableEvents, 
   onRealtimeReconnect, 
@@ -103,6 +104,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     setIsLoadingTimetable(true);
     setTimetableError(null);
 
+    // 1. Fetch authoritative master timetable
     refreshMasterTimetable()
       .then(() => {
         if (isMounted) setIsLoadingTimetable(false);
@@ -113,6 +115,29 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
           setIsLoadingTimetable(false);
         }
       });
+
+    // 2. Fetch authoritative admin entities from PostgreSQL backend
+    const loadAdminData = async () => {
+      try {
+        const [teachersRes, studentsRes, roomsRes, deptsRes, divsRes] = await Promise.allSettled([
+          adminApi.getTeachers(),
+          adminApi.getStudents(500),
+          adminApi.getRooms(),
+          adminApi.getDepartments(),
+          adminApi.getDivisions(),
+        ]);
+        if (isMounted) {
+          if (teachersRes.status === 'fulfilled' && teachersRes.value.length > 0) setTeachers(teachersRes.value);
+          if (studentsRes.status === 'fulfilled' && studentsRes.value.length > 0) setStudents(studentsRes.value);
+          if (roomsRes.status === 'fulfilled' && roomsRes.value.length > 0) setClassrooms(roomsRes.value);
+          if (deptsRes.status === 'fulfilled' && deptsRes.value.length > 0) setDepartments(deptsRes.value);
+          if (divsRes.status === 'fulfilled' && divsRes.value.length > 0) setDivisions(divsRes.value);
+        }
+      } catch (e) {
+        console.warn('Backend admin entities fetch error, keeping cached data:', e);
+      }
+    };
+    loadAdminData();
 
     const unsub = timetableStore.subscribe(() => {
       setLectures(timetableStore.getAllLectures());
@@ -198,27 +223,45 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
   // ACTION HANDLERS
   // ===================
 
-  // 1. Teacher Management
-  const handleAddTeacher = (newTeacher: TeacherProfile) => {
-    setTeachers(prev => [newTeacher, ...prev]);
-    logActivity(
-      `New Faculty Registered: ${newTeacher.title}`,
-      `Assigned to ${newTeacher.department} (${newTeacher.id}) • Specializations: ${newTeacher.subjects.join(', ')}`,
-      'status'
-    );
-    showNotification(`Teacher ${newTeacher.title} (${newTeacher.id}) registered successfully.`);
+  // 1. Teacher Management - Real PostgreSQL Persistence
+  const handleAddTeacher = async (newTeacher: TeacherProfile) => {
+    try {
+      const created = await adminApi.createTeacher({
+        id: newTeacher.id,
+        name: newTeacher.name || newTeacher.title,
+        department: newTeacher.department,
+        subjects: newTeacher.subjects,
+        email: newTeacher.email,
+        room: newTeacher.room,
+        status: newTeacher.status,
+      });
+      setTeachers(prev => [created, ...prev]);
+      logActivity(
+        `New Faculty Registered: ${created.title}`,
+        `Assigned to ${created.department} (${created.id}) • Specializations: ${created.subjects.join(', ')}`,
+        'status'
+      );
+      showNotification(`Teacher ${created.title} (${created.id}) registered successfully in PostgreSQL database.`);
+    } catch (err: any) {
+      alert(`Error registering teacher: ${err.message}`);
+    }
   };
 
-  const handleDeleteTeacher = (id: string) => {
+  const handleDeleteTeacher = async (id: string) => {
     const target = teachers.find(t => t.id === id);
     if (!confirm(`Are you sure you want to remove ${target?.title || 'this teacher'} from the faculty registry?`)) return;
-    setTeachers(prev => prev.filter(t => t.id !== id));
-    logActivity(
-      `Faculty Removed: ${target?.title || id}`,
-      `Removed from ${target?.department || 'Department'} roster`,
-      'status'
-    );
-    showNotification(`Teacher ${target?.title || id} removed from faculty.`);
+    try {
+      await adminApi.deleteTeacher(id);
+      setTeachers(prev => prev.filter(t => t.id !== id));
+      logActivity(
+        `Faculty Removed: ${target?.title || id}`,
+        `Removed from ${target?.department || 'Department'} roster`,
+        'status'
+      );
+      showNotification(`Teacher ${target?.title || id} removed from faculty.`);
+    } catch (err: any) {
+      alert(`Cannot delete teacher: ${err.message}`);
+    }
   };
 
   const handleToggleTeacherStatus = (id: string) => {
@@ -237,73 +280,124 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     }));
   };
 
-  // 2. Student Management
-  const handleAddStudent = (newStudent: Student) => {
-    setStudents(prev => [newStudent, ...prev]);
-    logActivity(
-      `New Student Enrolled: ${newStudent.name}`,
-      `Enrolled into ${newStudent.course} ${newStudent.year} Div ${newStudent.division} (${newStudent.id})`,
-      'status'
-    );
-    showNotification(`Student ${newStudent.name} (${newStudent.id}) enrolled successfully.`);
+  // 2. Student Management - Real PostgreSQL Persistence
+  const handleAddStudent = async (newStudent: Student) => {
+    try {
+      const created = await adminApi.createStudent({
+        id: newStudent.id,
+        name: newStudent.name,
+        department: newStudent.department,
+        course: newStudent.course,
+        year: newStudent.year,
+        division: newStudent.division,
+        classroom: newStudent.classroom,
+        batch: newStudent.batch,
+        email: newStudent.email,
+        status: newStudent.status,
+      });
+      setStudents(prev => [created, ...prev]);
+      logActivity(
+        `New Student Enrolled: ${created.name}`,
+        `Enrolled into ${created.course} ${created.year} Div ${created.division} (${created.id})`,
+        'status'
+      );
+      showNotification(`Student ${created.name} (${created.id}) enrolled successfully in PostgreSQL database.`);
+    } catch (err: any) {
+      alert(`Error enrolling student: ${err.message}`);
+    }
   };
 
-  const handleDeleteStudent = (id: string) => {
+  const handleDeleteStudent = async (id: string) => {
     const target = students.find(s => s.id === id);
     if (!confirm(`Are you sure you want to withdraw student ${target?.name || id}?`)) return;
-    setStudents(prev => prev.filter(s => s.id !== id));
-    logActivity(
-      `Student Withdrawn: ${target?.name || id}`,
-      `Removed from ${target?.course || ''} Div ${target?.division || ''}`,
-      'status'
-    );
-    showNotification(`Student ${target?.name || id} removed from records.`);
+    try {
+      await adminApi.deleteStudent(id);
+      setStudents(prev => prev.filter(s => s.id !== id));
+      logActivity(
+        `Student Withdrawn: ${target?.name || id}`,
+        `Removed from ${target?.course || ''} Div ${target?.division || ''}`,
+        'status'
+      );
+      showNotification(`Student ${target?.name || id} removed from database.`);
+    } catch (err: any) {
+      alert(`Cannot withdraw student: ${err.message}`);
+    }
   };
 
-  // 3. Department Management
-  const handleAddDepartment = (newDept: DepartmentSummary) => {
-    setDepartments(prev => [...prev, newDept]);
-    logActivity(
-      `New Department Created: ${newDept.name}`,
-      `Code: ${newDept.code} • ${newDept.coursesCount} Courses • ${newDept.divisionsCount} Divisions`,
-      'status'
-    );
-    showNotification(`Academic Department "${newDept.name}" created successfully.`);
+  // 3. Department Management - Real PostgreSQL Persistence
+  const handleAddDepartment = async (newDept: DepartmentSummary) => {
+    try {
+      const created = await adminApi.createDepartment({
+        name: newDept.name,
+        code: newDept.code,
+      });
+      setDepartments(prev => [...prev, created]);
+      logActivity(
+        `New Department Created: ${created.name}`,
+        `Code: ${created.code} • ${created.coursesCount} Courses • ${created.divisionsCount} Divisions`,
+        'status'
+      );
+      showNotification(`Academic Department "${created.name}" created successfully in PostgreSQL.`);
+    } catch (err: any) {
+      alert(`Error creating department: ${err.message}`);
+    }
   };
 
-  const handleDeleteDepartment = (id: string) => {
+  const handleDeleteDepartment = async (id: string) => {
     const target = departments.find(d => d.id === id);
     if (!confirm(`Are you sure you want to delete department "${target?.name}"?`)) return;
-    setDepartments(prev => prev.filter(d => d.id !== id));
-    logActivity(
-      `Department Removed: ${target?.name || id}`,
-      `Code ${target?.code} deleted from academic hierarchy`,
-      'status'
-    );
-    showNotification(`Department "${target?.name}" removed.`);
+    try {
+      await adminApi.deleteDepartment(id);
+      setDepartments(prev => prev.filter(d => d.id !== id));
+      logActivity(
+        `Department Removed: ${target?.name || id}`,
+        `Code ${target?.code} deleted from academic hierarchy`,
+        'status'
+      );
+      showNotification(`Department "${target?.name}" removed.`);
+    } catch (err: any) {
+      alert(`Cannot delete department: ${err.message}`);
+    }
   };
 
-  // 4. Classroom / Space Management
-  const handleAddClassroom = (newRoom: Classroom) => {
-    setClassrooms(prev => [...prev, newRoom]);
-    logActivity(
-      `New Learning Space Registered: ${newRoom.name}`,
-      `Type: ${newRoom.type} • Capacity: ${newRoom.capacity} seats • Floor: ${newRoom.floor}`,
-      'room_change'
-    );
-    showNotification(`Space "${newRoom.name}" created and added to timetable inventory.`);
+  // 4. Classroom / Space Management - Real PostgreSQL Persistence
+  const handleAddClassroom = async (newRoom: Classroom) => {
+    try {
+      const created = await adminApi.createRoom({
+        name: newRoom.name,
+        code: newRoom.code,
+        capacity: newRoom.capacity,
+        floor: newRoom.floor,
+        type: newRoom.type,
+        status: newRoom.status,
+      });
+      setClassrooms(prev => [...prev, created]);
+      logActivity(
+        `New Learning Space Registered: ${created.name}`,
+        `Type: ${created.type} • Capacity: ${created.capacity} seats • Floor: ${created.floor}`,
+        'room_change'
+      );
+      showNotification(`Space "${created.name}" created and saved to PostgreSQL inventory.`);
+    } catch (err: any) {
+      alert(`Error creating space: ${err.message}`);
+    }
   };
 
-  const handleDeleteClassroom = (id: string) => {
+  const handleDeleteClassroom = async (id: string) => {
     const target = classrooms.find(c => c.id === id);
     if (!confirm(`Are you sure you want to remove space "${target?.name}"?`)) return;
-    setClassrooms(prev => prev.filter(c => c.id !== id));
-    logActivity(
-      `Space Removed: ${target?.name || id}`,
-      `Decommissioned from campus rooms inventory`,
-      'room_change'
-    );
-    showNotification(`Space "${target?.name}" removed.`);
+    try {
+      await adminApi.deleteRoom(id);
+      setClassrooms(prev => prev.filter(c => c.id !== id));
+      logActivity(
+        `Space Removed: ${target?.name || id}`,
+        `Decommissioned from campus rooms inventory`,
+        'room_change'
+      );
+      showNotification(`Space "${target?.name}" removed.`);
+    } catch (err: any) {
+      alert(`Cannot delete space: ${err.message}`);
+    }
   };
 
   const handleToggleClassroom = (id: string) => {
@@ -322,15 +416,24 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout }) => {
     }));
   };
 
-  // 5. Division Management
-  const handleAddDivision = (newDiv: AcademicDivisionEntry) => {
-    setDivisions(prev => [...prev, newDiv]);
-    logActivity(
-      `New Division Cohort Added: ${newDiv.course} ${newDiv.year}`,
-      `Department: ${newDiv.department} • Divisions: ${newDiv.divisionNames} (${newDiv.divisionCount} divisions)`,
-      'status'
-    );
-    showNotification(`Division cohort for ${newDiv.course} ${newDiv.year} added.`);
+  // 5. Division Management - Real PostgreSQL Persistence
+  const handleAddDivision = async (newDiv: AcademicDivisionEntry) => {
+    try {
+      const created = await adminApi.createDivision({
+        course: newDiv.course,
+        year: newDiv.year,
+        divisionNames: newDiv.divisionNames || newDiv.divisions.join(', '),
+      });
+      setDivisions(prev => [...prev, created]);
+      logActivity(
+        `New Division Cohort Added: ${created.course} ${created.year}`,
+        `Department: ${created.department} • Divisions: ${created.divisionNames} (${created.divisionCount} divisions)`,
+        'status'
+      );
+      showNotification(`Division cohort for ${created.course} ${created.year} saved to PostgreSQL.`);
+    } catch (err: any) {
+      alert(`Error creating division: ${err.message}`);
+    }
   };
 
   const handleDeleteDivision = (no: number) => {

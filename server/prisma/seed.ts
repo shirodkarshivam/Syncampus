@@ -107,14 +107,14 @@ async function main() {
   // 4. Admin User (1)
   console.log('Seeding admin user...');
   await prisma.user.upsert({
-    where: { email: 'admin@syncampus.ac.in' },
+    where: { identifier: 'ADMIN01' },
     update: {
       role: UserRole.ADMIN,
-      identifier: 'ADMIN01',
+      email: 'admin@campus.edu',
       passwordHash: defaultPasswordHash,
     },
     create: {
-      email: 'admin@syncampus.ac.in',
+      email: 'admin@campus.edu',
       identifier: 'ADMIN01',
       role: UserRole.ADMIN,
       passwordHash: defaultPasswordHash,

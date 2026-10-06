@@ -10,7 +10,14 @@ export const createApp = () => {
     app.use(helmet());
     // CORS Configuration
     app.use(cors({
-        origin: ENV.CORS_ORIGIN,
+        origin: (origin, callback) => {
+            if (!origin)
+                return callback(null, true);
+            if (ENV.ALLOWED_ORIGINS.includes(origin) || ENV.ALLOWED_ORIGINS.includes('*')) {
+                return callback(null, true);
+            }
+            return callback(new Error(`CORS error: Origin ${origin} not allowed`));
+        },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Test-Role', 'x-test-role', 'X-Test-Identifier', 'x-test-identifier'],

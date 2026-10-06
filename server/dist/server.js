@@ -16,13 +16,14 @@ async function startServer() {
         }
     }
     const app = createApp();
-    const PORT = process.env.PORT || 5000;
+    const PORT = Number(process.env.PORT) || 5000;
+    const HOST = '0.0.0.0';
     const httpServer = http.createServer(app);
     // Initialize Real-time Socket.IO Gateway
     initSocketServer(httpServer);
-    httpServer.listen(PORT, () => {
-        console.log(`[SyncCampus Backend] Server running on http://localhost:${PORT}`);
-        console.log(`[SyncCampus Backend] Health check: http://localhost:${PORT}/api/health`);
+    httpServer.listen(PORT, HOST, () => {
+        console.log(`[SyncCampus Backend] Server running on http://${HOST}:${PORT}`);
+        console.log(`[SyncCampus Backend] Health check: http://${HOST}:${PORT}/api/health`);
         console.log(`[SyncCampus Backend] Socket.IO real-time gateway initialized`);
     });
     return httpServer;

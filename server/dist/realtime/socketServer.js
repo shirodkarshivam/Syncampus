@@ -75,7 +75,14 @@ export function initSocketServer(httpServer) {
     }
     io = new Server(httpServer, {
         cors: {
-            origin: ENV.CORS_ORIGIN,
+            origin: (origin, callback) => {
+                if (!origin)
+                    return callback(null, true);
+                if (ENV.ALLOWED_ORIGINS.includes(origin) || ENV.ALLOWED_ORIGINS.includes('*')) {
+                    return callback(null, true);
+                }
+                return callback(new Error(`CORS error: Origin ${origin} not allowed`));
+            },
             credentials: true,
             methods: ['GET', 'POST'],
         },

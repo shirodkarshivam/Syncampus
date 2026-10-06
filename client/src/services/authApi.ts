@@ -84,6 +84,14 @@ export function mapServerRoleToAppRole(role: ServerRole): AppRole {
   }
 }
 
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+
+export function resolveApiUrl(url: string): string {
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${API_BASE_URL}${path}`;
+}
+
 /**
  * Executes an authenticated API request with Bearer token and automatic refresh
  */
@@ -98,7 +106,9 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
     headers.set('Authorization', `Bearer ${inMemoryAccessToken}`);
   }
 
-  let response = await fetch(url, {
+  const finalUrl = resolveApiUrl(url);
+
+  let response = await fetch(finalUrl, {
     ...options,
     headers,
     credentials: 'include', // Include HTTP-only cookies
@@ -110,7 +120,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
       const refreshedUser = await authApi.restoreSession();
       if (refreshedUser && inMemoryAccessToken) {
         headers.set('Authorization', `Bearer ${inMemoryAccessToken}`);
-        response = await fetch(url, {
+        response = await fetch(finalUrl, {
           ...options,
           headers,
           credentials: 'include',
@@ -132,7 +142,7 @@ export const authApi = {
     identifier: string,
     requestedRole?: string
   ): Promise<{ success: boolean; message: string; email?: string; devCode?: string }> {
-    const res = await fetch('/api/v1/auth/request-otp', {
+    const res = await fetch(resolveApiUrl('/api/v1/auth/request-otp'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -164,7 +174,7 @@ export const authApi = {
    * Verifies the 6-digit OTP code against backend POST /api/v1/auth/verify-otp
    */
   async verifyOtp(identifier: string, otp: string, requestedRole?: string): Promise<AuthUser> {
-    const res = await fetch('/api/v1/auth/verify-otp', {
+    const res = await fetch(resolveApiUrl('/api/v1/auth/verify-otp'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -207,7 +217,7 @@ export const authApi = {
    * Authenticates user against backend POST /api/v1/auth/login
    */
   async login(identifier: string, password: string = 'password123', requestedRole?: string): Promise<AuthUser> {
-    const res = await fetch('/api/v1/auth/login', {
+    const res = await fetch(resolveApiUrl('/api/v1/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -269,7 +279,7 @@ export const authApi = {
     try {
       const fallbackToken = sessionStorage.getItem(REFRESH_TOKEN_KEY) || undefined;
 
-      const res = await fetch('/api/v1/auth/refresh', {
+      const res = await fetch(resolveApiUrl('/api/v1/auth/refresh'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -305,7 +315,7 @@ export const authApi = {
     const fallbackToken = sessionStorage.getItem(REFRESH_TOKEN_KEY) || undefined;
 
     try {
-      await fetch('/api/v1/auth/logout', {
+      await fetch(resolveApiUrl('/api/v1/auth/logout'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
