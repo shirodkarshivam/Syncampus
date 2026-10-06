@@ -3,10 +3,35 @@ import { conflictService, DAY_NUMBER_MAP, PERIOD_TIME_MAP } from './conflictServ
 import { eventPublisher } from '../realtime/eventPublisher.js';
 import { createRequire } from 'module';
 import { LectureStatus } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
 const require = createRequire(import.meta.url);
-const MASTER_TIMETABLE = require('../data/masterTimetable.json');
-const INITIAL_CLASSROOMS = require('../data/classrooms.json');
-const TEACHERS_DATA = require('../data/teachers.json');
+function loadJsonSafe(relPath, fileName) {
+    try {
+        return require(relPath);
+    }
+    catch {
+        try {
+            const candidates = [
+                path.resolve(process.cwd(), 'src', 'data', fileName),
+                path.resolve(process.cwd(), 'dist', 'data', fileName),
+                path.resolve(process.cwd(), 'data', fileName),
+            ];
+            for (const p of candidates) {
+                if (fs.existsSync(p)) {
+                    return JSON.parse(fs.readFileSync(p, 'utf8'));
+                }
+            }
+        }
+        catch {
+            // Fallback
+        }
+        return [];
+    }
+}
+const MASTER_TIMETABLE = loadJsonSafe('../data/masterTimetable.json', 'masterTimetable.json');
+const INITIAL_CLASSROOMS = loadJsonSafe('../data/classrooms.json', 'classrooms.json');
+const TEACHERS_DATA = loadJsonSafe('../data/teachers.json', 'teachers.json');
 export class TimetableError extends Error {
     statusCode;
     errorCode;
