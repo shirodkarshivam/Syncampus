@@ -5,10 +5,36 @@ import { eventPublisher } from '../realtime/eventPublisher.js';
 import { createRequire } from 'module';
 import { LectureStatus } from '@prisma/client';
 
+import fs from 'fs';
+import path from 'path';
+
 const require = createRequire(import.meta.url);
-const MASTER_TIMETABLE: any[] = require('../data/masterTimetable.json');
-const INITIAL_CLASSROOMS: any[] = require('../data/classrooms.json');
-const TEACHERS_DATA: any[] = require('../data/teachers.json');
+
+function loadJsonSafe(relPath: string, fileName: string): any[] {
+  try {
+    return require(relPath);
+  } catch {
+    try {
+      const candidates = [
+        path.resolve(process.cwd(), 'src', 'data', fileName),
+        path.resolve(process.cwd(), 'dist', 'data', fileName),
+        path.resolve(process.cwd(), 'data', fileName),
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          return JSON.parse(fs.readFileSync(p, 'utf8'));
+        }
+      }
+    } catch {
+      // Fallback
+    }
+    return [];
+  }
+}
+
+const MASTER_TIMETABLE: any[] = loadJsonSafe('../data/masterTimetable.json', 'masterTimetable.json');
+const INITIAL_CLASSROOMS: any[] = loadJsonSafe('../data/classrooms.json', 'classrooms.json');
+const TEACHERS_DATA: any[] = loadJsonSafe('../data/teachers.json', 'teachers.json');
 
 export interface TimetableFilters {
   department?: string;

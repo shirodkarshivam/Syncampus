@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "node ./node_modules/typescript/bin/tsc",
+    "build": "node ./node_modules/typescript/bin/tsc && node scripts/copyData.js",
     "start": "node dist/server.js",
     "db:generate": "node ./node_modules/prisma/build/index.js generate",
     "db:push": "node ./node_modules/prisma/build/index.js db push",
