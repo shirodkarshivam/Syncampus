@@ -78,10 +78,15 @@ export function initSocketServer(httpServer) {
             origin: (origin, callback) => {
                 if (!origin)
                     return callback(null, true);
-                if (ENV.ALLOWED_ORIGINS.includes(origin) || ENV.ALLOWED_ORIGINS.includes('*')) {
+                const normalized = origin.trim().replace(/\/$/, '');
+                if (ENV.ALLOWED_ORIGINS.includes(normalized) ||
+                    ENV.ALLOWED_ORIGINS.includes('*') ||
+                    normalized.endsWith('.vercel.app') ||
+                    normalized.includes('localhost') ||
+                    normalized.includes('127.0.0.1')) {
                     return callback(null, true);
                 }
-                return callback(new Error(`CORS error: Origin ${origin} not allowed`));
+                return callback(null, false);
             },
             credentials: true,
             methods: ['GET', 'POST'],

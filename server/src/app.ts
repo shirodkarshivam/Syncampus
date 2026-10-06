@@ -8,18 +8,33 @@ import { ENV } from './config/env.js';
 export const createApp = (): Express => {
   const app = express();
 
-  // Security Headers
-  app.use(helmet());
+  // Security Headers (configured for cross-origin frontend-backend communication)
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    })
+  );
 
   // CORS Configuration
+  const isAllowedOrigin = (origin: string | undefined): boolean => {
+    if (!origin) return true;
+    const normalized = origin.trim().replace(/\/$/, '');
+    return (
+      ENV.ALLOWED_ORIGINS.includes(normalized) ||
+      ENV.ALLOWED_ORIGINS.includes('*') ||
+      normalized.endsWith('.vercel.app') ||
+      normalized.includes('localhost') ||
+      normalized.includes('127.0.0.1')
+    );
+  };
+
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin) return callback(null, true);
-        if (ENV.ALLOWED_ORIGINS.includes(origin) || ENV.ALLOWED_ORIGINS.includes('*')) {
+        if (isAllowedOrigin(origin)) {
           return callback(null, true);
         }
-        return callback(new Error(`CORS error: Origin ${origin} not allowed`));
+        return callback(null, false);
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
