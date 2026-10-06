@@ -13,7 +13,7 @@ export const createApp = () => {
         origin: ENV.CORS_ORIGIN,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Test-Role', 'x-test-role', 'X-Test-Identifier', 'x-test-identifier'],
     }));
     // Cookie and Body Parsing
     app.use(cookieParser());

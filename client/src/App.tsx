@@ -16,20 +16,21 @@ interface UserSession {
 
 function App() {
   const [session, setSession] = useState<UserSession | null>(() => {
-    if (!isAuthEnabled) {
-      const savedRole = (sessionStorage.getItem('syncampus_test_role') as Role) || 'student';
-      setDevRole(savedRole);
-      const email =
-        savedRole === 'admin'
-          ? 'admin@campus.edu'
-          : savedRole === 'teacher'
-          ? 'rahul.patil.t001@campus.edu'
-          : 'stu0001@sonopantcollege.edu.in';
-      return { role: savedRole, email };
+    try {
+      const saved = sessionStorage.getItem('syncampus_user_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.role) {
+          setDevRole(parsed.role, parsed.user?.identifier);
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignored
     }
     return null;
   });
-  const [isInitializing, setIsInitializing] = useState<boolean>(isAuthEnabled);
+  const [isInitializing, setIsInitializing] = useState<boolean>(false);
 
   // Restore authenticated session on page refresh (F5) only in production / auth-enabled mode
   useEffect(() => {
@@ -45,11 +46,13 @@ function App() {
         const user = await authApi.restoreSession();
         if (user && isMounted) {
           const appRole = mapServerRoleToAppRole(user.role);
-          setSession({
+          const newSession = {
             role: appRole,
             email: user.email,
             user,
-          });
+          };
+          sessionStorage.setItem('syncampus_user_session', JSON.stringify(newSession));
+          setSession(newSession);
         }
       } catch {
         // Unauthenticated or expired session
@@ -68,7 +71,7 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthEnabled]);
+  }, []);
 
   // Manage Real-time Socket.IO connection lifecycle based on authentication state
   useEffect(() => {
@@ -79,20 +82,15 @@ function App() {
     }
   }, [session]);
 
-  const handleSwitchRole = (newRole: Role) => {
-    setDevRole(newRole);
-    sessionStorage.setItem('syncampus_test_role', newRole);
-    const email =
-      newRole === 'admin'
-        ? 'admin@campus.edu'
-        : newRole === 'teacher'
-        ? 'rahul.patil.t001@campus.edu'
-        : 'stu0001@sonopantcollege.edu.in';
-    setSession({ role: newRole, email });
-  };
-
   const handleLoginSuccess = (role: Role, email: string, user?: AuthUser) => {
-    setSession({ role, email, user });
+    const newSession = { role, email, user };
+    try {
+      sessionStorage.setItem('syncampus_user_session', JSON.stringify(newSession));
+    } catch {
+      // Ignored
+    }
+    setDevRole(role, user?.identifier);
+    setSession(newSession);
   };
 
   const handleLogout = async () => {
@@ -104,11 +102,13 @@ function App() {
     } catch {
       // Ignored
     } finally {
-      if (isAuthEnabled) {
-        setSession(null);
-      } else {
-        handleSwitchRole('student');
+      try {
+        sessionStorage.removeItem('syncampus_user_session');
+        sessionStorage.removeItem('syncampus_test_role');
+      } catch {
+        // Ignored
       }
+      setSession(null);
     }
   };
 
@@ -160,126 +160,6 @@ function App() {
 
       {session?.role === 'student' && (
         <StudentDashboard studentEmail={session.email} onLogout={handleLogout} />
-      )}
-
-      {/* Development Testing Mode Floating Role Switcher */}
-      {!isAuthEnabled && (
-        <aside
-          aria-label="Development Testing Role Switcher"
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 99999,
-            background: 'rgba(15, 23, 42, 0.92)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(59, 130, 246, 0.4)',
-            borderRadius: '9999px',
-            padding: '6px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 16px 36px -5px rgba(0, 0, 0, 0.7), 0 0 20px rgba(59, 130, 246, 0.25)',
-            fontFamily: 'Inter, system-ui, sans-serif',
-          }}
-        >
-          <span
-            style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              color: '#38BDF8',
-              padding: '0 6px',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <span style={{ fontSize: '13px' }}>🧪</span>
-            <span>Test Mode:</span>
-          </span>
-
-          <button
-            type="button"
-            id="test-role-student"
-            onClick={() => handleSwitchRole('student')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '9999px',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              border: 'none',
-              transition: 'all 0.2s ease',
-              background:
-                session?.role === 'student'
-                  ? 'linear-gradient(135deg, #10B981, #059669)'
-                  : 'rgba(255, 255, 255, 0.08)',
-              color: session?.role === 'student' ? '#FFFFFF' : '#CBD5E1',
-              boxShadow:
-                session?.role === 'student'
-                  ? '0 0 14px rgba(16, 185, 129, 0.5)'
-                  : 'none',
-            }}
-          >
-            🎓 Student Dashboard
-          </button>
-
-          <button
-            type="button"
-            id="test-role-teacher"
-            onClick={() => handleSwitchRole('teacher')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '9999px',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              border: 'none',
-              transition: 'all 0.2s ease',
-              background:
-                session?.role === 'teacher'
-                  ? 'linear-gradient(135deg, #3B82F6, #2563EB)'
-                  : 'rgba(255, 255, 255, 0.08)',
-              color: session?.role === 'teacher' ? '#FFFFFF' : '#CBD5E1',
-              boxShadow:
-                session?.role === 'teacher'
-                  ? '0 0 14px rgba(59, 130, 246, 0.5)'
-                  : 'none',
-            }}
-          >
-            👨‍🏫 Faculty Dashboard
-          </button>
-
-          <button
-            type="button"
-            id="test-role-admin"
-            onClick={() => handleSwitchRole('admin')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '9999px',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              border: 'none',
-              transition: 'all 0.2s ease',
-              background:
-                session?.role === 'admin'
-                  ? 'linear-gradient(135deg, #8B5CF6, #7C3AED)'
-                  : 'rgba(255, 255, 255, 0.08)',
-              color: session?.role === 'admin' ? '#FFFFFF' : '#CBD5E1',
-              boxShadow:
-                session?.role === 'admin'
-                  ? '0 0 14px rgba(139, 92, 246, 0.5)'
-                  : 'none',
-            }}
-          >
-            🛡️ Admin Dashboard
-          </button>
-        </aside>
       )}
     </div>
   );

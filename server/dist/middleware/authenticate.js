@@ -7,16 +7,17 @@ export async function authenticate(req, res, next) {
     // In development testing mode when authentication is disabled
     if (!ENV.AUTH_ENABLED && (!authHeader || !authHeader.startsWith('Bearer '))) {
         const testRole = (req.headers['x-test-role'] || 'STUDENT').toUpperCase();
-        let identifier = 'STU0001';
+        const testIdentifier = req.headers['x-test-identifier'];
+        let identifier = testIdentifier || 'STU0001';
         let email = 'stu0001@sonopantcollege.edu.in';
         let role = UserRole.STUDENT;
         if (testRole === 'TEACHER') {
-            identifier = 'T001';
+            identifier = testIdentifier || 'T001';
             email = 'rahul.patil.t001@campus.edu';
             role = UserRole.TEACHER;
         }
         else if (testRole === 'ADMIN') {
-            identifier = 'ADMIN01';
+            identifier = testIdentifier || 'ADMIN01';
             email = 'admin@campus.edu';
             role = UserRole.ADMIN;
         }

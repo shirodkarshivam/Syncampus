@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { getAccessToken, isAuthEnabled, getDevRole } from './authApi';
+import { getAccessToken, isAuthEnabled, getDevRole, getDevIdentifier } from './authApi';
 
 export type TimetableEventType =
   | 'timetable:lecture_cancelled'
@@ -67,7 +67,7 @@ export function initRealtime(tokenOverride?: string): Socket | null {
   // Connect via relative path to support both dev proxy and production host
   socket = io('/', {
     path: '/socket.io',
-    auth: { token: token || undefined, role: getDevRole() },
+    auth: { token: token || undefined, role: getDevRole(), identifier: getDevIdentifier() },
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,

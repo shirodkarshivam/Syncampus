@@ -51,13 +51,23 @@ export function setAccessToken(token: string | null): void {
 export const isAuthEnabled = import.meta.env.VITE_AUTH_ENABLED !== 'false';
 
 let currentDevRole: AppRole = 'student';
+let currentDevIdentifier: string = 'STU0001';
 
-export function setDevRole(role: AppRole): void {
+export function setDevRole(role: AppRole, identifier?: string): void {
   currentDevRole = role;
+  if (identifier) {
+    currentDevIdentifier = identifier;
+  } else {
+    currentDevIdentifier = role === 'admin' ? 'ADMIN01' : role === 'teacher' ? 'T001' : 'STU0001';
+  }
 }
 
 export function getDevRole(): AppRole {
   return currentDevRole;
+}
+
+export function getDevIdentifier(): string {
+  return currentDevIdentifier;
 }
 
 // Map backend UPPERCASE role to frontend lowercase Role ('student' | 'teacher' | 'admin')
@@ -83,6 +93,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
 
   if (!isAuthEnabled) {
     headers.set('X-Test-Role', currentDevRole);
+    headers.set('X-Test-Identifier', currentDevIdentifier);
   } else if (inMemoryAccessToken) {
     headers.set('Authorization', `Bearer ${inMemoryAccessToken}`);
   }

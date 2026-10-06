@@ -233,44 +233,87 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setLoginError(null);
     setOtpInfoMessage(null);
     let targetEmail = (customEmail !== undefined ? customEmail : email).trim();
+    let determinedRole: Role = selectedRole;
 
-    if (selectedRole === 'teacher') {
+    const lower = targetEmail.toLowerCase();
+    if (lower.startsWith('stu') || lower.includes('@sonopantcollege.edu.in') || targetEmail.startsWith('STU')) {
+      determinedRole = 'student';
+    } else if (lower.startsWith('t0') || lower.startsWith('t-') || (lower.includes('@campus.edu') && !lower.includes('admin')) || targetEmail.startsWith('T')) {
+      determinedRole = 'teacher';
+    } else if (lower.includes('admin')) {
+      determinedRole = 'admin';
+    }
+
+    let finalIdentifier = '';
+    let finalName = '';
+    let resolvedUser: AuthUser | undefined = undefined;
+
+    if (determinedRole === 'teacher') {
       const detected = findTeacherByQuery(targetEmail);
       if (detected) {
         targetEmail = detected.email;
+        finalIdentifier = detected.id;
+        finalName = detected.title;
         setMatchedTeacher(detected);
-      } else if (!targetEmail) {
-        targetEmail = 'rahul.patil.t001@campus.edu';
-        setMatchedTeacher(TEACHERS_DATA[0]);
+      } else {
+        if (!targetEmail) targetEmail = 'rahul.patil.t001@campus.edu';
+        finalIdentifier = targetEmail.toUpperCase().startsWith('T') ? targetEmail.toUpperCase() : 'T001';
+        finalName = `Faculty (${finalIdentifier})`;
       }
-    } else if (selectedRole === 'student') {
+      resolvedUser = {
+        id: `dev-${finalIdentifier}`,
+        email: targetEmail,
+        identifier: finalIdentifier,
+        role: 'TEACHER',
+        teacher: {
+          id: `dev-${finalIdentifier}`,
+          teacherId: finalIdentifier,
+          fullName: finalName,
+          departmentId: 'Science & Technology',
+        },
+      };
+    } else if (determinedRole === 'student') {
       const detected = findStudentByQuery(targetEmail);
       if (detected) {
         targetEmail = detected.email;
+        finalIdentifier = detected.id;
+        finalName = detected.name;
         setMatchedStudent(detected);
-      } else if (!targetEmail) {
-        targetEmail = 'shirodkarshivam068@gmail.com';
-        setMatchedStudent(STUDENTS_DATA[0]);
+      } else {
+        if (!targetEmail) targetEmail = 'stu0001@sonopantcollege.edu.in';
+        finalIdentifier = targetEmail.toUpperCase().startsWith('STU') ? targetEmail.toUpperCase() : 'STU0001';
+        finalName = `Student (${finalIdentifier})`;
       }
-    } else if (!targetEmail) {
-      targetEmail = ROLES[selectedRole].emailPlaceholder;
+      resolvedUser = {
+        id: `dev-${finalIdentifier}`,
+        email: targetEmail,
+        identifier: finalIdentifier,
+        role: 'STUDENT',
+        student: {
+          id: `dev-${finalIdentifier}`,
+          studentId: finalIdentifier,
+          fullName: finalName,
+          divisionId: 'BSc IT_FY_A',
+        },
+      };
+    } else {
+      if (!targetEmail) targetEmail = 'admin@campus.edu';
+      finalIdentifier = 'ADMIN01';
+      resolvedUser = {
+        id: 'dev-ADMIN01',
+        email: targetEmail,
+        identifier: 'ADMIN01',
+        role: 'ADMIN',
+      };
     }
 
     setEmail(targetEmail);
-    setIsSendingOtp(true);
+    setIsLoggingIn(true);
 
-    try {
-      const result = await authApi.requestOtp(targetEmail, selectedRole);
-      setOtp(['', '', '', '', '', '']);
-      setOtpInfoMessage(result.message);
-      if (result.devCode) {
-        console.log(`[SyncCampus Auth] Verification code for ${result.email || targetEmail}: [${result.devCode}]`);
-      }
-      setStep('otp');
-    } catch (err: any) {
-      setLoginError(err.message || 'Failed to dispatch verification code. Please check your credentials.');
-    } finally {
-      setIsSendingOtp(false);
+    if (onLoginSuccess) {
+      onLoginSuccess(determinedRole, targetEmail, resolvedUser);
+    } else {
+      setStep('success');
     }
   };
 
@@ -328,44 +371,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const enteredCode = otp.join('').trim();
-    if (enteredCode.length !== 6) {
-      setLoginError('Please enter all 6 digits of the verification code.');
-      return;
-    }
-
-    let finalEmail = email.trim() || ROLES[selectedRole].emailPlaceholder;
-
-    if (selectedRole === 'teacher') {
-      const detected = findTeacherByQuery(finalEmail);
-      if (detected) {
-        finalEmail = detected.email;
-      }
-    } else if (selectedRole === 'student') {
-      const detected = findStudentByQuery(finalEmail);
-      if (detected) {
-        finalEmail = detected.email;
-      }
-    }
-
-    setIsLoggingIn(true);
-    setLoginError(null);
-
-    try {
-      // Connect to real backend OTP verification endpoint
-      const user = await authApi.verifyOtp(finalEmail, enteredCode, selectedRole);
-      const appRole = mapServerRoleToAppRole(user.role);
-
-      if (onLoginSuccess) {
-        onLoginSuccess(appRole, user.email || finalEmail, user);
-      } else {
-        setStep('success');
-      }
-    } catch (err: any) {
-      setLoginError(err.message || 'Verification failed. Please check the OTP code.');
-    } finally {
-      setIsLoggingIn(false);
-    }
+    await handleSendOtp(e);
   };
 
   const handleSelectFacultyFromModal = async (teacher: TeacherProfile) => {
@@ -704,8 +710,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 type="submit" 
                 className={`role-button ${activeRoleConfig.colorClass}`}
                 style={{ marginTop: '16px' }}
+                disabled={isLoggingIn}
               >
-                <span>Send OTP &amp; Proceed</span>
+                <span>{isLoggingIn ? 'Signing in...' : 'Sign In'}</span>
                 <ArrowRight size={18} className="btn-arrow" />
               </button>
 
