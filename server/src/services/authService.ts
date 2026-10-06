@@ -69,14 +69,12 @@ export class AuthService {
             teacher: true,
           },
         });
-      } catch {
-        // Database error or offline
-        user = null;
+      } catch (err: any) {
+        console.error('[AuthService] Fatal PostgreSQL authentication error:', err.message);
+        throw new Error(`Database error during authentication: ${err.message}`);
       }
-    }
-
-    // Fallback lookup from verified dataset if DB is offline or table empty
-    if (!user) {
+    } else {
+      // Standalone/offline test fallback only when DATABASE_URL is not configured
       const fb = findFallbackUser(trimmedId, requestedRole) || findFallbackUser(normalizedEmail, requestedRole);
       if (fb) {
         user = {
@@ -115,7 +113,13 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    // Issue JWTs
+    return this.createSessionForUser(user);
+  }
+
+  /**
+   * Generates JWT tokens, records refresh token in PostgreSQL, and formats AuthResponse.
+   */
+  async createSessionForUser(user: any): Promise<AuthResponse> {
     const tokenPayload: TokenPayload = {
       sub: user.id,
       role: user.role,
@@ -128,21 +132,17 @@ export class AuthService {
 
     // Save refresh token hash in database if available
     if (isDbConfigured) {
-      try {
-        const hashedRefresh = hashToken(refreshToken);
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7);
+      const hashedRefresh = hashToken(refreshToken);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
 
-        await prisma.refreshToken.create({
-          data: {
-            userId: user.id,
-            tokenHash: hashedRefresh,
-            expiresAt,
-          },
-        });
-      } catch {
-        // Handled in-memory if DB is offline
-      }
+      await prisma.refreshToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashedRefresh,
+          expiresAt,
+        },
+      });
     }
 
     return {
@@ -185,25 +185,46 @@ export class AuthService {
     }
 
     if (isDbConfigured) {
-      try {
-        const tokenRecord = await prisma.refreshToken.findUnique({
-          where: { tokenHash: hashedRefresh },
-        });
+      const tokenRecord = await prisma.refreshToken.findUnique({
+        where: { tokenHash: hashedRefresh },
+      });
 
-        if (tokenRecord && (tokenRecord.revoked || tokenRecord.expiresAt < new Date())) {
-          throw new Error('Invalid or expired refresh token');
-        }
-
-        // Rotate: Revoke old token
-        if (tokenRecord) {
-          await prisma.refreshToken.update({
-            where: { id: tokenRecord.id },
-            data: { revoked: true },
-          });
-        }
-      } catch {
-        // In-memory fallback
+      if (!tokenRecord || tokenRecord.revoked || tokenRecord.expiresAt < new Date()) {
+        throw new Error('Invalid or expired refresh token');
       }
+
+      // Rotate: Revoke old token
+      await prisma.refreshToken.update({
+        where: { id: tokenRecord.id },
+        data: { revoked: true },
+      });
+
+      const tokenPayload: TokenPayload = {
+        sub: payload.sub,
+        role: payload.role,
+        identifier: payload.identifier,
+        email: payload.email,
+      };
+
+      const newAccessToken = generateAccessToken(tokenPayload);
+      const newRefreshToken = generateRefreshToken(tokenPayload);
+
+      const newHashedRefresh = hashToken(newRefreshToken);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      await prisma.refreshToken.create({
+        data: {
+          userId: payload.sub,
+          tokenHash: newHashedRefresh,
+          expiresAt,
+        },
+      });
+
+      return {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      };
     }
 
     const tokenPayload: TokenPayload = {
@@ -230,14 +251,10 @@ export class AuthService {
       const hashed = hashToken(refreshToken);
       inMemoryRevokedTokens.add(hashed);
       if (isDbConfigured) {
-        try {
-          await prisma.refreshToken.updateMany({
-            where: { tokenHash: hashed },
-            data: { revoked: true },
-          });
-        } catch {
-          // Ignored
-        }
+        await prisma.refreshToken.updateMany({
+          where: { tokenHash: hashed },
+          data: { revoked: true },
+        });
       }
     }
   }
@@ -246,22 +263,41 @@ export class AuthService {
    * Changes authenticated user password with bcrypt hashing.
    */
   async changePassword(userId: string, currentPass: string, newPass: string): Promise<void> {
-    let user: any = null;
-
     if (isDbConfigured) {
-      try {
-        user = await prisma.user.findUnique({
-          where: { id: userId },
-        });
-      } catch {
-        user = null;
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { id: userId },
+            { identifier: userId },
+          ],
+        },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
       }
+
+      const storedHash = user.passwordHash || (await getDevHash());
+      const isMatch = await comparePassword(currentPass, storedHash);
+      if (!isMatch) {
+        throw new Error('Current password does not match');
+      }
+
+      const newHash = await hashPassword(newPass);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: newHash },
+      });
+
+      if (user.identifier) {
+        inMemoryUserPasswords.set(user.identifier, newHash);
+      }
+      inMemoryUserPasswords.set(user.id, newHash);
+      return;
     }
 
     const strippedId = userId.replace('stu-user-', '').replace('stu-', '').replace('teach-user-', '').replace('teach-', '');
-
     const storedHash =
-      user?.passwordHash ||
       inMemoryUserPasswords.get(userId) ||
       inMemoryUserPasswords.get(strippedId) ||
       (await getDevHash());
@@ -272,24 +308,8 @@ export class AuthService {
     }
 
     const newHash = await hashPassword(newPass);
-
-    if (isDbConfigured && user) {
-      try {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { passwordHash: newHash },
-        });
-      } catch {
-        // Ignored if offline
-      }
-    }
-
-    // Store in-memory cache for continuous tests
     inMemoryUserPasswords.set(userId, newHash);
     inMemoryUserPasswords.set(strippedId, newHash);
-    if (user?.identifier) {
-      inMemoryUserPasswords.set(user.identifier, newHash);
-    }
   }
 
   /**
@@ -297,27 +317,30 @@ export class AuthService {
    */
   async getMe(userId: string): Promise<any> {
     if (isDbConfigured) {
-      try {
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          include: {
-            student: true,
-            teacher: true,
-          },
-        });
-        if (user) {
-          return {
-            id: user.id,
-            email: user.email,
-            identifier: user.identifier,
-            role: user.role,
-            student: user.student,
-            teacher: user.teacher,
-          };
-        }
-      } catch {
-        // Offline fallback
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { id: userId },
+            { identifier: userId },
+          ],
+        },
+        include: {
+          student: true,
+          teacher: true,
+        },
+      });
+
+      if (user) {
+        return {
+          id: user.id,
+          email: user.email,
+          identifier: user.identifier,
+          role: user.role,
+          student: user.student,
+          teacher: user.teacher,
+        };
       }
+      return null;
     }
 
     const strippedId = userId.replace('stu-user-', '').replace('stu-', '').replace('teach-user-', '').replace('teach-', '');

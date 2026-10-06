@@ -75,6 +75,8 @@ async function runAllTimetableTests() {
   const port = (server.address() as any).port;
   console.log(`Ephemeral test server running on http://127.0.0.1:${port}\n`);
 
+  await timetableService.resetToOriginalTimetable();
+
   // Tokens
   const studentToken = generateAccessToken({
     sub: 'stu-STU0001',
@@ -410,7 +412,7 @@ async function runAllTimetableTests() {
 
   // --- 8. RESTORATION & MASTER TIMETABLE INTEGRITY ---
   console.log('\n--- 8. Testing Timetable Reset & Master Integrity Verification ---');
-  timetableService.resetToOriginalTimetable();
+  await timetableService.resetToOriginalTimetable();
   const integrity = timetableService.getIntegrityReport();
   console.log('Post-Test Integrity Report:');
   console.log(`  - Total Lectures:      ${integrity.totalLectures} (Expected: 1,275)`);

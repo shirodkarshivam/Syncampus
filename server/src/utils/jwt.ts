@@ -19,13 +19,14 @@ export function generateAccessToken(payload: TokenPayload): string {
   });
 }
 
-/**
- * Generates a long-lived refresh token.
- */
 export function generateRefreshToken(payload: TokenPayload): string {
-  return jwt.sign(payload, ENV.JWT_REFRESH_SECRET, {
-    expiresIn: ENV.JWT_REFRESH_EXPIRES_IN as any,
-  });
+  return jwt.sign(
+    { ...payload, jti: crypto.randomUUID() },
+    ENV.JWT_REFRESH_SECRET,
+    {
+      expiresIn: ENV.JWT_REFRESH_EXPIRES_IN as any,
+    }
+  );
 }
 
 /**

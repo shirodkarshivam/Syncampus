@@ -5,6 +5,7 @@ import { initSocketServer, closeSocketServer } from '../src/realtime/socketServe
 import { generateAccessToken } from '../src/utils/jwt.js';
 import { UserRole } from '@prisma/client';
 import { loadFallbackStudents } from '../src/data/authFallback.js';
+import { timetableService } from '../src/services/timetableService.js';
 
 interface TestResult {
   num: number;
@@ -103,6 +104,8 @@ async function runPart5RealtimeTests() {
   await new Promise<void>(resolve => server.listen(0, resolve));
   const port = (server.address() as any).port;
   console.log(`Ephemeral real-time test server running on http://127.0.0.1:${port}\n`);
+
+  await timetableService.resetToOriginalTimetable();
 
   // Prepare users
   const students = loadFallbackStudents();
@@ -529,6 +532,7 @@ async function runPart5RealtimeTests() {
   socketTeacher.disconnect();
   socketAdmin.disconnect();
   closeSocketServer();
+  await timetableService.resetToOriginalTimetable();
   await new Promise<void>(resolve => server.close(() => resolve()));
 
   // Display summary table

@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import { createApp } from '../src/app.js';
 import { ENV } from '../src/config/env.js';
 import { UserRole } from '@prisma/client';
+import { prisma, isDbConfigured } from '../src/config/database.js';
+import { hashPassword } from '../src/utils/password.js';
 
 interface TestResult {
   name: string;
@@ -68,7 +70,22 @@ async function runTests() {
   const app = createApp();
   const server = app.listen(0); // Random free port
 
+  async function resetTestUserPassword() {
+    if (isDbConfigured) {
+      try {
+        const hash = await hashPassword('password123');
+        await prisma.user.updateMany({
+          where: { identifier: 'STU0001' },
+          data: { passwordHash: hash },
+        });
+      } catch {
+        // Ignored
+      }
+    }
+  }
+
   try {
+    await resetTestUserPassword();
     // 1. Health check
     const healthRes = await request(server, { method: 'GET', path: '/api/health' });
     assertTest('GET /api/health returns 200', 200, healthRes.status, healthRes.body?.status === 'ok');
@@ -307,6 +324,7 @@ async function runTests() {
     console.log('======================================================\n');
 
   } finally {
+    await resetTestUserPassword();
     server.close();
   }
 }

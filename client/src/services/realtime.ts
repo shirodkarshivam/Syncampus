@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { getAccessToken } from './authApi';
+import { getAccessToken, isAuthEnabled, getDevRole } from './authApi';
 
 export type TimetableEventType =
   | 'timetable:lecture_cancelled'
@@ -47,13 +47,14 @@ const reconnectListeners = new Set<() => void>();
 export function initRealtime(tokenOverride?: string): Socket | null {
   const token = tokenOverride || getAccessToken();
 
-  if (!token) {
+  if (isAuthEnabled && !token) {
     console.log('[Realtime] No auth token available; socket connection deferred');
     return null;
   }
 
-  // If already connected with same token, reuse existing socket
-  if (socket && currentToken === token && socket.connected) {
+  // If already connected with same auth state, reuse existing socket
+  const effectiveAuthKey = token || `dev-${getDevRole()}`;
+  if (socket && currentToken === effectiveAuthKey && socket.connected) {
     return socket;
   }
 
@@ -61,12 +62,12 @@ export function initRealtime(tokenOverride?: string): Socket | null {
     socket.disconnect();
   }
 
-  currentToken = token;
+  currentToken = effectiveAuthKey;
 
   // Connect via relative path to support both dev proxy and production host
   socket = io('/', {
     path: '/socket.io',
-    auth: { token },
+    auth: { token: token || undefined, role: getDevRole() },
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,

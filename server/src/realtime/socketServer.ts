@@ -3,6 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { verifyAccessToken, TokenPayload } from '../utils/jwt.js';
 import { prisma, isDbConfigured } from '../config/database.js';
 import { ENV } from '../config/env.js';
+import { UserRole } from '@prisma/client';
 import { AuthenticatedUser } from '../middleware/authenticate.js';
 import { ClientToServerEvents, ServerToClientEvents, SocketData } from './types.js';
 
@@ -20,7 +21,13 @@ export async function resolveUserFromPayload(payload: TokenPayload): Promise<Aut
         where: { id: payload.sub },
         include: {
           student: {
-            select: { id: true, studentId: true, fullName: true, divisionId: true },
+            select: {
+              id: true,
+              studentId: true,
+              fullName: true,
+              divisionId: true,
+              division: { select: { id: true, fullName: true } },
+            },
           },
           teacher: {
             select: { id: true, teacherId: true, fullName: true, departmentId: true },
@@ -99,6 +106,82 @@ export function initSocketServer(
     }
 
     if (!token) {
+      if (!ENV.AUTH_ENABLED) {
+        // Dev testing mode: resolve user by role
+        const testRole = (
+          (socket.handshake.auth?.role || socket.handshake.headers['x-test-role'] || 'STUDENT') as string
+        ).toUpperCase();
+        let identifier = 'STU0001';
+        let email = 'stu0001@sonopantcollege.edu.in';
+        let role: UserRole = UserRole.STUDENT;
+
+        if (testRole === 'TEACHER') {
+          identifier = 'T001';
+          email = 'rahul.patil.t001@campus.edu';
+          role = UserRole.TEACHER;
+        } else if (testRole === 'ADMIN') {
+          identifier = 'ADMIN01';
+          email = 'admin@campus.edu';
+          role = UserRole.ADMIN;
+        }
+
+        let user: any = null;
+        if (isDbConfigured) {
+          try {
+            user = await prisma.user.findFirst({
+              where: { identifier },
+              include: {
+                student: {
+                  select: {
+                    id: true,
+                    studentId: true,
+                    fullName: true,
+                    divisionId: true,
+                    division: { select: { id: true, fullName: true } },
+                  },
+                },
+                teacher: {
+                  select: { id: true, teacherId: true, fullName: true, departmentId: true },
+                },
+              },
+            });
+          } catch {
+            user = null;
+          }
+        }
+
+        if (!user) {
+          user = {
+            id: `dev-${identifier}`,
+            email,
+            identifier,
+            role,
+            student:
+              role === UserRole.STUDENT
+                ? {
+                    id: 'dev-stu-0001',
+                    studentId: identifier,
+                    fullName: 'Yash Pawar (Testing Mode)',
+                    divisionId: 'BSc IT_FY_A',
+                  }
+                : null,
+            teacher:
+              role === UserRole.TEACHER
+                ? {
+                    id: 'dev-teach-0001',
+                    teacherId: identifier,
+                    fullName: 'Prof. Rahul Patil (Testing Mode)',
+                    departmentId: 'Science & Technology',
+                  }
+                : null,
+          };
+        }
+
+        socket.data.user = user;
+        socket.data.rooms = [];
+        return next();
+      }
+
       return next(new Error('AUTHENTICATION_REQUIRED'));
     }
 
@@ -133,11 +216,15 @@ export function initSocketServer(
 
     // 2. Role-specific Room Membership (Server-Enforced)
     if (user.role === 'STUDENT') {
-      const divisionId = user.student?.divisionId;
-      if (divisionId) {
-        const divisionRoom = `division:${divisionId}`;
+      const divName = (user.student as any)?.division?.fullName || user.student?.divisionId;
+      if (divName) {
+        const divisionRoom = `division:${divName}`;
         socket.join(divisionRoom);
         roomsToJoin.push(divisionRoom);
+      }
+      if (user.student?.divisionId && user.student.divisionId !== divName) {
+        socket.join(`division:${user.student.divisionId}`);
+        roomsToJoin.push(`division:${user.student.divisionId}`);
       }
     } else if (user.role === 'TEACHER') {
       const teacherId = user.teacher?.teacherId || user.identifier;

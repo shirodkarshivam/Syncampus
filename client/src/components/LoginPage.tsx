@@ -79,7 +79,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('password123');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [otp, setOtp] = useState(['1', '2', '3', '4', '5', '6']);
+  const [otpInfoMessage, setOtpInfoMessage] = useState<string | null>(null);
+  const [isSendingOtp, setIsSendingOtp] = useState<boolean>(false);
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Teacher-specific state
@@ -215,20 +217,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const handleSelectRole = (role: Role) => {
     setSelectedRole(role);
     setLoginError(null);
+    setOtpInfoMessage(null);
     setStep('email');
     if (role === 'teacher' && !email) {
-      setEmail('shirodkarshivam068@gmail.com');
+      setEmail('rahul.patil.t001@campus.edu');
     } else if (role === 'student' && !email) {
       setEmail('shirodkarshivam068@gmail.com');
     } else if (role === 'admin' && !email) {
-      setEmail('shirodkarshivam068@gmail.com');
+      setEmail('admin@campus.edu');
     }
   };
 
-  const handleSendOtp = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendOtp = async (e?: React.FormEvent, customEmail?: string) => {
+    if (e) e.preventDefault();
     setLoginError(null);
-    let targetEmail = email.trim();
+    setOtpInfoMessage(null);
+    let targetEmail = (customEmail !== undefined ? customEmail : email).trim();
 
     if (selectedRole === 'teacher') {
       const detected = findTeacherByQuery(targetEmail);
@@ -236,7 +240,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         targetEmail = detected.email;
         setMatchedTeacher(detected);
       } else if (!targetEmail) {
-        targetEmail = 'shirodkarshivam068@gmail.com';
+        targetEmail = 'rahul.patil.t001@campus.edu';
         setMatchedTeacher(TEACHERS_DATA[0]);
       }
     } else if (selectedRole === 'student') {
@@ -253,11 +257,58 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
 
     setEmail(targetEmail);
-    setOtp(['1', '2', '3', '4', '5', '6']);
-    setStep('otp');
+    setIsSendingOtp(true);
+
+    try {
+      const result = await authApi.requestOtp(targetEmail, selectedRole);
+      setOtp(['', '', '', '', '', '']);
+      setOtpInfoMessage(result.message);
+      if (result.devCode) {
+        console.log(`[SyncCampus Auth] Verification code for ${result.email || targetEmail}: [${result.devCode}]`);
+      }
+      setStep('otp');
+    } catch (err: any) {
+      setLoginError(err.message || 'Failed to dispatch verification code. Please check your credentials.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setLoginError(null);
+    setOtpInfoMessage(null);
+    setIsSendingOtp(true);
+
+    try {
+      const result = await authApi.requestOtp(email.trim(), selectedRole);
+      setOtp(['', '', '', '', '', '']);
+      setOtpInfoMessage(result.message);
+      if (result.devCode) {
+        console.log(`[SyncCampus Auth] Re-sent verification code for ${result.email || email}: [${result.devCode}]`);
+      }
+    } catch (err: any) {
+      setLoginError(err.message || 'Failed to resend verification code.');
+    } finally {
+      setIsSendingOtp(false);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
+    // Enable paste of 6-digit code into any box
+    if (value.length > 1) {
+      const cleanDigits = value.replace(/\D/g, '').slice(0, 6);
+      if (cleanDigits.length > 0) {
+        const newOtp = [...otp];
+        for (let i = 0; i < 6; i++) {
+          newOtp[i] = cleanDigits[i] || '';
+        }
+        setOtp(newOtp);
+        const focusIdx = Math.min(cleanDigits.length, 5);
+        otpInputRefs.current[focusIdx]?.focus();
+        return;
+      }
+    }
+
     if (!/^\d*$/.test(value)) return;
     
     const newOtp = [...otp];
@@ -277,6 +328,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    const enteredCode = otp.join('').trim();
+    if (enteredCode.length !== 6) {
+      setLoginError('Please enter all 6 digits of the verification code.');
+      return;
+    }
+
     let finalEmail = email.trim() || ROLES[selectedRole].emailPlaceholder;
 
     if (selectedRole === 'teacher') {
@@ -295,8 +352,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setLoginError(null);
 
     try {
-      // Connect to real backend authentication with selected role
-      const user = await authApi.login(finalEmail, password, selectedRole);
+      // Connect to real backend OTP verification endpoint
+      const user = await authApi.verifyOtp(finalEmail, enteredCode, selectedRole);
       const appRole = mapServerRoleToAppRole(user.role);
 
       if (onLoginSuccess) {
@@ -305,39 +362,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         setStep('success');
       }
     } catch (err: any) {
-      setLoginError(err.message || 'Invalid credentials. Please check your ID/email and password.');
+      setLoginError(err.message || 'Verification failed. Please check the OTP code.');
     } finally {
       setIsLoggingIn(false);
     }
   };
 
-  const handleSelectFacultyFromModal = (teacher: TeacherProfile) => {
+  const handleSelectFacultyFromModal = async (teacher: TeacherProfile) => {
     setEmail(teacher.email);
     setMatchedTeacher(teacher);
     setShowFacultyModal(false);
-    setLoginError(null);
-    setOtp(['1', '2', '3', '4', '5', '6']);
-    setStep('otp');
+    await handleSendOtp(undefined, teacher.email);
   };
 
-  const handleSelectStudentFromModal = (student: Student) => {
+  const handleSelectStudentFromModal = async (student: Student) => {
     setEmail(student.email);
     setMatchedStudent(student);
     setShowStudentModal(false);
-    setLoginError(null);
-    setOtp(['1', '2', '3', '4', '5', '6']);
-    setStep('otp');
+    await handleSendOtp(undefined, student.email);
   };
 
   const handleBackToRoles = () => {
     setLoginError(null);
+    setOtpInfoMessage(null);
     setStep('roles');
-    setOtp(['1', '2', '3', '4', '5', '6']);
+    setOtp(['', '', '', '', '', '']);
   };
 
   const handleBackToEmail = () => {
     setLoginError(null);
+    setOtpInfoMessage(null);
     setStep('email');
+    setOtp(['', '', '', '', '', '']);
   };
 
   const activeRoleConfig = ROLES[selectedRole];
@@ -782,23 +838,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 ))}
               </div>
 
-              <div style={{
-                background: selectedRole === 'student' ? '#EFF6FF' : '#F0FDFA',
-                border: `1px solid ${selectedRole === 'student' ? '#DBEAFE' : '#CCFBF1'}`,
-                padding: '8px 12px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                color: selectedRole === 'student' ? '#1D4ED8' : '#0F766E',
-                textAlign: 'center',
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}>
-                <CheckCircle2 size={15} color={selectedRole === 'student' ? '#2563EB' : '#0D9488'} />
-                <span>Demo Code <strong>123456</strong> auto-verified for testing</span>
-              </div>
+              {otpInfoMessage && !loginError && (
+                <div style={{
+                  background: selectedRole === 'student' ? '#EFF6FF' : '#F0FDFA',
+                  border: `1px solid ${selectedRole === 'student' ? '#DBEAFE' : '#CCFBF1'}`,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: selectedRole === 'student' ? '#1D4ED8' : '#0F766E',
+                  textAlign: 'center',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}>
+                  <CheckCircle2 size={15} color={selectedRole === 'student' ? '#2563EB' : '#0D9488'} />
+                  <span>{otpInfoMessage}</span>
+                </div>
+              )}
 
               {loginError && (
                 <div style={{
@@ -822,20 +880,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <button 
                 type="submit" 
                 className={`role-button ${activeRoleConfig.colorClass}`}
-                disabled={isLoggingIn}
+                disabled={isLoggingIn || otp.join('').trim().length !== 6}
               >
-                <span>{isLoggingIn ? 'Authenticating with Backend...' : 'Verify & Access Dashboard'}</span>
+                <span>{isLoggingIn ? 'Verifying with Backend...' : 'Verify & Enter Dashboard'}</span>
                 <ArrowRight size={18} className="btn-arrow" />
               </button>
 
-              <div className="form-footer-action">
-                <span>Need to use a different login?</span>
+              <div className="form-footer-action" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button 
+                  type="button" 
+                  className="action-link"
+                  onClick={handleResendOtp}
+                  disabled={isSendingOtp}
+                >
+                  {isSendingOtp ? 'Sending new code...' : 'Resend Code'}
+                </button>
                 <button 
                   type="button" 
                   className="action-link"
                   onClick={handleBackToEmail}
                 >
-                  Change Email
+                  Change Email / ID
                 </button>
               </div>
             </form>

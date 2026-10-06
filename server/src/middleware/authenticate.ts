@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, TokenPayload } from '../utils/jwt.js';
 import { prisma, isDbConfigured } from '../config/database.js';
+import { ENV } from '../config/env.js';
 import { UserRole } from '@prisma/client';
 
 export interface AuthenticatedUser {
@@ -32,6 +33,78 @@ declare global {
 
 export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
+
+  // In development testing mode when authentication is disabled
+  if (!ENV.AUTH_ENABLED && (!authHeader || !authHeader.startsWith('Bearer '))) {
+    const testRole = ((req.headers['x-test-role'] || 'STUDENT') as string).toUpperCase();
+    const testIdentifier = req.headers['x-test-identifier'] as string | undefined;
+    let identifier = testIdentifier || 'STU0001';
+    let email = 'stu0001@sonopantcollege.edu.in';
+    let role: UserRole = UserRole.STUDENT;
+
+    if (testRole === 'TEACHER') {
+      identifier = testIdentifier || 'T001';
+      email = 'rahul.patil.t001@campus.edu';
+      role = UserRole.TEACHER;
+    } else if (testRole === 'ADMIN') {
+      identifier = testIdentifier || 'ADMIN01';
+      email = 'admin@campus.edu';
+      role = UserRole.ADMIN;
+    }
+
+    let user: any = null;
+    if (isDbConfigured) {
+      try {
+        user = await prisma.user.findFirst({
+          where: { identifier },
+          include: {
+            student: { select: { id: true, studentId: true, fullName: true, divisionId: true } },
+            teacher: { select: { id: true, teacherId: true, fullName: true, departmentId: true } },
+          },
+        });
+      } catch {
+        user = null;
+      }
+    }
+
+    if (!user) {
+      user = {
+        id: `dev-${identifier}`,
+        email,
+        identifier,
+        role,
+        student:
+          role === UserRole.STUDENT
+            ? {
+                id: 'dev-stu-0001',
+                studentId: identifier,
+                fullName: 'Yash Pawar (Testing Mode)',
+                divisionId: 'BSc IT_FY_A',
+              }
+            : null,
+        teacher:
+          role === UserRole.TEACHER
+            ? {
+                id: 'dev-teach-0001',
+                teacherId: identifier,
+                fullName: 'Prof. Rahul Patil (Testing Mode)',
+                departmentId: 'Science & Technology',
+              }
+            : null,
+      };
+    }
+
+    req.user = {
+      id: user.id,
+      email: user.email,
+      identifier: user.identifier,
+      role: user.role,
+      student: user.student || null,
+      teacher: user.teacher || null,
+    };
+
+    return next();
+  }
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({

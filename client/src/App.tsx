@@ -4,7 +4,7 @@ import type { Role } from './components/LoginPage';
 import AdminDashboard from './components/admin/AdminDashboard';
 import TeacherDashboard from './components/teacher/TeacherDashboard';
 import StudentDashboard from './components/student/StudentDashboard';
-import { authApi, mapServerRoleToAppRole } from './services/authApi';
+import { authApi, mapServerRoleToAppRole, isAuthEnabled, setDevRole } from './services/authApi';
 import type { AuthUser } from './services/authApi';
 import { initRealtime, disconnectRealtime } from './services/realtime';
 
@@ -15,11 +15,29 @@ interface UserSession {
 }
 
 function App() {
-  const [session, setSession] = useState<UserSession | null>(null);
-  const [isInitializing, setIsInitializing] = useState<boolean>(true);
+  const [session, setSession] = useState<UserSession | null>(() => {
+    if (!isAuthEnabled) {
+      const savedRole = (sessionStorage.getItem('syncampus_test_role') as Role) || 'student';
+      setDevRole(savedRole);
+      const email =
+        savedRole === 'admin'
+          ? 'admin@campus.edu'
+          : savedRole === 'teacher'
+          ? 'rahul.patil.t001@campus.edu'
+          : 'stu0001@sonopantcollege.edu.in';
+      return { role: savedRole, email };
+    }
+    return null;
+  });
+  const [isInitializing, setIsInitializing] = useState<boolean>(isAuthEnabled);
 
-  // Restore authenticated session on page refresh (F5) via backend refresh token
+  // Restore authenticated session on page refresh (F5) only in production / auth-enabled mode
   useEffect(() => {
+    if (!isAuthEnabled) {
+      setIsInitializing(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function checkAuthSession() {
@@ -50,7 +68,7 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAuthEnabled]);
 
   // Manage Real-time Socket.IO connection lifecycle based on authentication state
   useEffect(() => {
@@ -61,6 +79,18 @@ function App() {
     }
   }, [session]);
 
+  const handleSwitchRole = (newRole: Role) => {
+    setDevRole(newRole);
+    sessionStorage.setItem('syncampus_test_role', newRole);
+    const email =
+      newRole === 'admin'
+        ? 'admin@campus.edu'
+        : newRole === 'teacher'
+        ? 'rahul.patil.t001@campus.edu'
+        : 'stu0001@sonopantcollege.edu.in';
+    setSession({ role: newRole, email });
+  };
+
   const handleLoginSuccess = (role: Role, email: string, user?: AuthUser) => {
     setSession({ role, email, user });
   };
@@ -68,11 +98,17 @@ function App() {
   const handleLogout = async () => {
     try {
       disconnectRealtime();
-      await authApi.logout();
+      if (isAuthEnabled) {
+        await authApi.logout();
+      }
     } catch {
       // Ignored
     } finally {
-      setSession(null);
+      if (isAuthEnabled) {
+        setSession(null);
+      } else {
+        handleSwitchRole('student');
+      }
     }
   };
 
@@ -126,26 +162,26 @@ function App() {
         <StudentDashboard studentEmail={session.email} onLogout={handleLogout} />
       )}
 
-      {/* Superuser Portal Switcher for Shivam Shirodkar */}
-      {session && session.email.toLowerCase() === 'shirodkarshivam068@gmail.com' && (
+      {/* Development Testing Mode Floating Role Switcher */}
+      {!isAuthEnabled && (
         <aside
-          aria-label="Superuser Portal Switcher"
+          aria-label="Development Testing Role Switcher"
           style={{
             position: 'fixed',
             bottom: '24px',
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 99999,
-            background: 'rgba(15, 23, 42, 0.90)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
+            background: 'rgba(15, 23, 42, 0.92)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
             borderRadius: '9999px',
-            padding: '6px 10px',
+            padding: '6px 14px',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            boxShadow: '0 12px 30px -5px rgba(0, 0, 0, 0.6), 0 0 24px rgba(59, 130, 246, 0.35)',
+            boxShadow: '0 16px 36px -5px rgba(0, 0, 0, 0.7), 0 0 20px rgba(59, 130, 246, 0.25)',
             fontFamily: 'Inter, system-ui, sans-serif',
           }}
         >
@@ -154,20 +190,22 @@ function App() {
               fontSize: '11px',
               fontWeight: 700,
               color: '#38BDF8',
-              padding: '0 8px',
+              padding: '0 6px',
               letterSpacing: '0.05em',
               textTransform: 'uppercase',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '6px',
             }}
           >
-            <span>👑</span>
-            <span>Shivam Access:</span>
+            <span style={{ fontSize: '13px' }}>🧪</span>
+            <span>Test Mode:</span>
           </span>
+
           <button
             type="button"
-            onClick={() => setSession(prev => (prev ? { ...prev, role: 'student' } : null))}
+            id="test-role-student"
+            onClick={() => handleSwitchRole('student')}
             style={{
               padding: '6px 14px',
               borderRadius: '9999px',
@@ -177,21 +215,23 @@ function App() {
               border: 'none',
               transition: 'all 0.2s ease',
               background:
-                session.role === 'student'
+                session?.role === 'student'
                   ? 'linear-gradient(135deg, #10B981, #059669)'
                   : 'rgba(255, 255, 255, 0.08)',
-              color: session.role === 'student' ? '#FFFFFF' : '#CBD5E1',
+              color: session?.role === 'student' ? '#FFFFFF' : '#CBD5E1',
               boxShadow:
-                session.role === 'student'
-                  ? '0 0 12px rgba(16, 185, 129, 0.5)'
+                session?.role === 'student'
+                  ? '0 0 14px rgba(16, 185, 129, 0.5)'
                   : 'none',
             }}
           >
-            🎓 Student Portal
+            🎓 Student Dashboard
           </button>
+
           <button
             type="button"
-            onClick={() => setSession(prev => (prev ? { ...prev, role: 'teacher' } : null))}
+            id="test-role-teacher"
+            onClick={() => handleSwitchRole('teacher')}
             style={{
               padding: '6px 14px',
               borderRadius: '9999px',
@@ -201,21 +241,23 @@ function App() {
               border: 'none',
               transition: 'all 0.2s ease',
               background:
-                session.role === 'teacher'
+                session?.role === 'teacher'
                   ? 'linear-gradient(135deg, #3B82F6, #2563EB)'
                   : 'rgba(255, 255, 255, 0.08)',
-              color: session.role === 'teacher' ? '#FFFFFF' : '#CBD5E1',
+              color: session?.role === 'teacher' ? '#FFFFFF' : '#CBD5E1',
               boxShadow:
-                session.role === 'teacher'
-                  ? '0 0 12px rgba(59, 130, 246, 0.5)'
+                session?.role === 'teacher'
+                  ? '0 0 14px rgba(59, 130, 246, 0.5)'
                   : 'none',
             }}
           >
-            👨‍🏫 Faculty Portal
+            👨‍🏫 Faculty Dashboard
           </button>
+
           <button
             type="button"
-            onClick={() => setSession(prev => (prev ? { ...prev, role: 'admin' } : null))}
+            id="test-role-admin"
+            onClick={() => handleSwitchRole('admin')}
             style={{
               padding: '6px 14px',
               borderRadius: '9999px',
@@ -225,17 +267,17 @@ function App() {
               border: 'none',
               transition: 'all 0.2s ease',
               background:
-                session.role === 'admin'
+                session?.role === 'admin'
                   ? 'linear-gradient(135deg, #8B5CF6, #7C3AED)'
                   : 'rgba(255, 255, 255, 0.08)',
-              color: session.role === 'admin' ? '#FFFFFF' : '#CBD5E1',
+              color: session?.role === 'admin' ? '#FFFFFF' : '#CBD5E1',
               boxShadow:
-                session.role === 'admin'
-                  ? '0 0 12px rgba(139, 92, 246, 0.5)'
+                session?.role === 'admin'
+                  ? '0 0 14px rgba(139, 92, 246, 0.5)'
                   : 'none',
             }}
           >
-            🛡️ Admin Portal
+            🛡️ Admin Dashboard
           </button>
         </aside>
       )}

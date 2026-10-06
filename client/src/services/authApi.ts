@@ -48,6 +48,18 @@ export function setAccessToken(token: string | null): void {
   inMemoryAccessToken = token;
 }
 
+export const isAuthEnabled = import.meta.env.VITE_AUTH_ENABLED !== 'false';
+
+let currentDevRole: AppRole = 'student';
+
+export function setDevRole(role: AppRole): void {
+  currentDevRole = role;
+}
+
+export function getDevRole(): AppRole {
+  return currentDevRole;
+}
+
 // Map backend UPPERCASE role to frontend lowercase Role ('student' | 'teacher' | 'admin')
 export function mapServerRoleToAppRole(role: ServerRole): AppRole {
   switch (role) {
@@ -69,7 +81,9 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
 
-  if (inMemoryAccessToken) {
+  if (!isAuthEnabled) {
+    headers.set('X-Test-Role', currentDevRole);
+  } else if (inMemoryAccessToken) {
     headers.set('Authorization', `Bearer ${inMemoryAccessToken}`);
   }
 
@@ -79,8 +93,8 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
     credentials: 'include', // Include HTTP-only cookies
   });
 
-  // If token expired (401), attempt single session refresh and retry
-  if (response.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/refresh')) {
+  // If token expired (401), attempt single session refresh and retry (only in production / auth-enabled mode)
+  if (isAuthEnabled && response.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/refresh')) {
     try {
       const refreshedUser = await authApi.restoreSession();
       if (refreshedUser && inMemoryAccessToken) {
@@ -100,6 +114,84 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
 }
 
 export const authApi = {
+  /**
+   * Requests a real 6-digit verification code from backend POST /api/v1/auth/request-otp
+   */
+  async requestOtp(
+    identifier: string,
+    requestedRole?: string
+  ): Promise<{ success: boolean; message: string; email?: string; devCode?: string }> {
+    const res = await fetch('/api/v1/auth/request-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        identifier: identifier.trim(),
+        ...(requestedRole ? { requestedRole: requestedRole.toUpperCase() } : {}),
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error(data.message || 'No account registered with this email or ID.');
+      } else if (res.status === 403) {
+        throw new Error(data.message || 'Role mismatch: You do not have permission for this portal.');
+      } else if (res.status === 429) {
+        throw new Error(data.message || 'Too many attempts. Account temporarily locked.');
+      } else if (res.status >= 500) {
+        throw new Error('Unable to connect to the authentication service. Please try again.');
+      }
+      throw new Error(data.message || 'Failed to send verification code.');
+    }
+
+    return data;
+  },
+
+  /**
+   * Verifies the 6-digit OTP code against backend POST /api/v1/auth/verify-otp
+   */
+  async verifyOtp(identifier: string, otp: string, requestedRole?: string): Promise<AuthUser> {
+    const res = await fetch('/api/v1/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        identifier: identifier.trim(),
+        otp: otp.trim(),
+        ...(requestedRole ? { requestedRole: requestedRole.toUpperCase() } : {}),
+      }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        throw new Error(errorData.message || 'Incorrect verification code. Please check and try again.');
+      } else if (res.status === 400) {
+        throw new Error(errorData.message || 'Invalid or expired code.');
+      } else if (res.status === 429) {
+        throw new Error(errorData.message || 'Maximum attempts exceeded. Account temporarily locked.');
+      } else if (res.status >= 500) {
+        throw new Error('Unable to connect to the authentication service. Please try again.');
+      }
+      throw new Error(errorData.message || 'Verification failed');
+    }
+
+    const data: LoginResponse = await res.json();
+    setAccessToken(data.accessToken);
+
+    if (data.refreshToken) {
+      try {
+        sessionStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+      } catch {
+        // Ignored
+      }
+    }
+
+    return data.user;
+  },
+
   /**
    * Authenticates user against backend POST /api/v1/auth/login
    */
@@ -159,6 +251,10 @@ export const authApi = {
    * Restores session on browser refresh via POST /api/v1/auth/refresh
    */
   async restoreSession(): Promise<AuthUser | null> {
+    if (!isAuthEnabled) {
+      return null;
+    }
+
     try {
       const fallbackToken = sessionStorage.getItem(REFRESH_TOKEN_KEY) || undefined;
 

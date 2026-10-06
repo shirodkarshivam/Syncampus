@@ -382,7 +382,7 @@ node scratch/test_profile_and_notifications.js
 * **Password**: `password123` (or any value after updating in profile)
 
 ### Admin Portal:
-* **Email**: `admin@campus.edu` (Auto-authenticates with OTP `123456`)
+* **Email**: `admin@campus.edu` | **Role**: Campus Administrator (Email OTP Verification)
 
 ---
 

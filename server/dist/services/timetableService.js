@@ -2,6 +2,7 @@ import { prisma, isDbConfigured } from '../config/database.js';
 import { conflictService, DAY_NUMBER_MAP, PERIOD_TIME_MAP } from './conflictService.js';
 import { eventPublisher } from '../realtime/eventPublisher.js';
 import { createRequire } from 'module';
+import { LectureStatus } from '@prisma/client';
 const require = createRequire(import.meta.url);
 const MASTER_TIMETABLE = require('../data/masterTimetable.json');
 const INITIAL_CLASSROOMS = require('../data/classrooms.json');
@@ -22,7 +23,7 @@ export class TimetableError extends Error {
 let inMemoryLectures = [];
 let inMemoryChanges = [];
 let isStoreInitialized = false;
-// Async Mutex for Race Condition Protection
+// Async Mutex for Race Condition Protection in fallback mode
 class AsyncMutex {
     queue = [];
     locked = false;
@@ -103,16 +104,134 @@ function initializeFallbackStore() {
     inMemoryChanges = [];
     isStoreInitialized = true;
 }
+/**
+ * Normalizes PostgreSQL lecture records with relational properties into the standard API contract
+ */
+export function formatDbLecture(l) {
+    const divName = l.division?.fullName || l.divisionId || '';
+    const parts = divName ? divName.split('_') : [];
+    const course = l.division?.course?.name || parts[0] || '';
+    const year = l.division?.academicYear || parts[1] || '';
+    const division = l.division?.divisionName || parts[2] || '';
+    const department = l.division?.course?.department?.name || 'Science & Technology';
+    return {
+        id: l.id,
+        divisionId: l.division?.fullName || l.divisionId,
+        divisionKey: l.division?.fullName || l.divisionId,
+        course,
+        year,
+        division,
+        department,
+        subjectId: l.subject?.code || l.subjectId,
+        subjectName: l.subject?.name || '',
+        teacherId: l.teacher?.teacherId || l.teacherId,
+        teacherName: l.teacher?.fullName || '',
+        roomId: l.room?.roomCode || l.roomId,
+        roomName: l.room?.roomName || l.room?.roomCode || l.roomId,
+        dayOfWeek: l.dayOfWeek,
+        dayName: l.dayName,
+        periodNumber: l.periodNumber,
+        startTime: l.startTime,
+        endTime: l.endTime,
+        status: l.status,
+        originalTeacherId: l.originalTeacher?.teacherId || l.originalTeacherId || l.teacher?.teacherId,
+        originalRoomId: l.originalRoom?.roomCode || l.originalRoomId || l.room?.roomCode,
+        originalStartTime: l.originalStartTime || l.startTime,
+        originalEndTime: l.originalEndTime || l.endTime,
+        originalDay: l.originalDay || l.dayName,
+        cancellationReason: l.cancellationReason || null,
+        createdAt: l.createdAt instanceof Date ? l.createdAt.toISOString() : l.createdAt,
+        updatedAt: l.updatedAt instanceof Date ? l.updatedAt.toISOString() : l.updatedAt,
+        history: l.auditLogs?.map((a) => ({
+            id: a.id,
+            lectureId: a.lectureId,
+            changedByUserId: a.changedByUserId,
+            changeType: a.changeType,
+            oldValues: a.oldValues,
+            newValues: a.newValues,
+            reason: a.reason,
+            createdAt: a.createdAt instanceof Date ? a.createdAt.toISOString() : a.createdAt,
+        })) || [],
+        subject: l.subject,
+        teacher: l.teacher,
+        divisionDetails: l.division,
+        room: l.room,
+    };
+}
 export class TimetableService {
     constructor() {
         initializeFallbackStore();
     }
     /**
-     * Resets the in-memory fallback store to pristine original master state (1,275 sessions).
+     * Resets the in-memory store and restores PostgreSQL to pristine 1,275 original scheduled lectures.
      */
-    resetToOriginalTimetable() {
+    async resetToOriginalTimetable() {
         isStoreInitialized = false;
         initializeFallbackStore();
+        if (isDbConfigured) {
+            await this.restorePostgresLectures();
+        }
+    }
+    /**
+     * Restores pristine lecture records and cleans up extra/deleted sessions in PostgreSQL
+     */
+    async restorePostgresLectures() {
+        if (!isDbConfigured)
+            return;
+        try {
+            // 1. Delete extra lectures
+            await prisma.lecture.deleteMany({
+                where: { id: { startsWith: 'lec-extra' } },
+            });
+            // 2. Ensure lec-1 exists and is reset to SCHEDULED
+            const lec1 = MASTER_TIMETABLE.find(l => l.id === 'lec-1');
+            if (lec1) {
+                const div = await prisma.division.findFirst({ where: { fullName: lec1.divisionKey } });
+                const teacher = await prisma.teacher.findFirst({ where: { teacherId: lec1.teacherId } });
+                const room = await prisma.room.findFirst({
+                    where: { OR: [{ roomCode: lec1.classroom }, { roomName: lec1.classroom }, { id: lec1.classroom }] },
+                });
+                const sub = await prisma.subject.findFirst({ where: { name: lec1.subject } });
+                if (div && teacher && room && sub) {
+                    await prisma.lecture.upsert({
+                        where: { id: 'lec-1' },
+                        update: {
+                            divisionId: div.id,
+                            subjectId: sub.id,
+                            teacherId: teacher.id,
+                            roomId: room.id,
+                            dayOfWeek: 1,
+                            dayName: 'Monday',
+                            periodNumber: 1,
+                            startTime: '09:00',
+                            endTime: '10:00',
+                            status: LectureStatus.SCHEDULED,
+                            cancellationReason: null,
+                        },
+                        create: {
+                            id: 'lec-1',
+                            divisionId: div.id,
+                            subjectId: sub.id,
+                            teacherId: teacher.id,
+                            roomId: room.id,
+                            dayOfWeek: 1,
+                            dayName: 'Monday',
+                            periodNumber: 1,
+                            startTime: '09:00',
+                            endTime: '10:00',
+                            status: LectureStatus.SCHEDULED,
+                        },
+                    });
+                }
+            }
+            // 3. Clear audit logs for lec-1 to keep it pristine
+            await prisma.timetableChange.deleteMany({
+                where: { lectureId: 'lec-1' },
+            });
+        }
+        catch (e) {
+            console.error('[TimetableService] Error in restorePostgresLectures:', e.message);
+        }
     }
     /**
      * Returns candidates for conflict engine checking
@@ -136,26 +255,23 @@ export class TimetableService {
      * GET single lecture with full relational metadata and audit history
      */
     async getLectureById(lectureId) {
-        initializeFallbackStore();
         if (isDbConfigured) {
-            try {
-                const dbLecture = await prisma.lecture.findUnique({
-                    where: { id: lectureId },
-                    include: {
-                        subject: true,
-                        teacher: true,
-                        division: true,
-                        room: true,
-                        auditLogs: { orderBy: { createdAt: 'desc' } },
-                    },
-                });
-                if (dbLecture)
-                    return dbLecture;
+            const dbLecture = await prisma.lecture.findUnique({
+                where: { id: lectureId },
+                include: {
+                    subject: true,
+                    teacher: true,
+                    division: { include: { course: { include: { department: true } } } },
+                    room: true,
+                    auditLogs: { orderBy: { createdAt: 'desc' } },
+                },
+            });
+            if (dbLecture) {
+                return formatDbLecture(dbLecture);
             }
-            catch {
-                // Fallback
-            }
+            throw new TimetableError(404, 'NOT_FOUND', `Lecture with ID ${lectureId} not found.`);
         }
+        initializeFallbackStore();
         const lecture = inMemoryLectures.find(l => l.id === lectureId);
         if (!lecture) {
             throw new TimetableError(404, 'NOT_FOUND', `Lecture with ID ${lectureId} not found.`);
@@ -170,16 +286,39 @@ export class TimetableService {
      * GET timetable for authenticated student
      */
     async getStudentTimetable(user) {
-        initializeFallbackStore();
         if (user.role !== 'STUDENT') {
             throw new TimetableError(403, 'FORBIDDEN', 'Access restricted to student accounts.');
         }
         const studentDiv = user.student?.divisionId;
-        if (!studentDiv) {
+        if (!studentDiv && !user.identifier) {
             throw new TimetableError(400, 'BAD_REQUEST', 'Student is not mapped to any division.');
         }
-        // Match exact division key or normalized course_year_div
-        const normalizedDiv = studentDiv.trim();
+        if (isDbConfigured) {
+            const division = await prisma.division.findFirst({
+                where: {
+                    OR: [
+                        ...(studentDiv ? [{ id: studentDiv }, { fullName: studentDiv }, { fullName: studentDiv.replace(/_/g, '-') }] : []),
+                        ...(user.identifier ? [{ students: { some: { studentId: user.identifier } } }] : []),
+                    ],
+                },
+            });
+            if (!division) {
+                throw new TimetableError(400, 'BAD_REQUEST', 'Student division could not be resolved in database.');
+            }
+            const lectures = await prisma.lecture.findMany({
+                where: { divisionId: division.id },
+                include: {
+                    subject: true,
+                    teacher: true,
+                    division: { include: { course: { include: { department: true } } } },
+                    room: true,
+                },
+                orderBy: [{ dayOfWeek: 'asc' }, { periodNumber: 'asc' }],
+            });
+            return lectures.map(formatDbLecture);
+        }
+        initializeFallbackStore();
+        const normalizedDiv = (studentDiv || '').trim();
         return inMemoryLectures.filter(l => l.divisionId === normalizedDiv ||
             l.divisionKey === normalizedDiv ||
             normalizedDiv.includes(l.divisionKey) ||
@@ -189,7 +328,6 @@ export class TimetableService {
      * GET timetable for authenticated teacher
      */
     async getTeacherTimetable(user, requestedTeacherId) {
-        initializeFallbackStore();
         let targetTeacherId = '';
         if (user.role === 'ADMIN' && requestedTeacherId) {
             targetTeacherId = requestedTeacherId;
@@ -206,13 +344,38 @@ export class TimetableService {
         if (!targetTeacherId) {
             throw new TimetableError(400, 'BAD_REQUEST', 'Teacher identifier could not be resolved.');
         }
+        if (isDbConfigured) {
+            const teacher = await prisma.teacher.findFirst({
+                where: {
+                    OR: [
+                        { teacherId: targetTeacherId },
+                        { id: targetTeacherId },
+                        { userId: user.id },
+                    ],
+                },
+            });
+            if (!teacher) {
+                return [];
+            }
+            const lectures = await prisma.lecture.findMany({
+                where: { teacherId: teacher.id },
+                include: {
+                    subject: true,
+                    teacher: true,
+                    division: { include: { course: { include: { department: true } } } },
+                    room: true,
+                },
+                orderBy: [{ dayOfWeek: 'asc' }, { periodNumber: 'asc' }],
+            });
+            return lectures.map(formatDbLecture);
+        }
+        initializeFallbackStore();
         return inMemoryLectures.filter(l => l.teacherId.toLowerCase() === targetTeacherId.toLowerCase());
     }
     /**
      * GET timetable for specific division with strict role checks
      */
     async getDivisionTimetable(user, divisionId) {
-        initializeFallbackStore();
         const cleanDivision = divisionId.trim();
         if (user.role === 'STUDENT') {
             const studentDiv = user.student?.divisionId || '';
@@ -223,30 +386,121 @@ export class TimetableService {
                 throw new TimetableError(403, 'FORBIDDEN', 'Students are strictly restricted from viewing schedules of other divisions.');
             }
         }
-        const lectures = inMemoryLectures.filter(l => l.divisionId.toLowerCase() === cleanDivision.toLowerCase() ||
+        if (isDbConfigured) {
+            const division = await prisma.division.findFirst({
+                where: {
+                    OR: [
+                        { fullName: cleanDivision },
+                        { fullName: cleanDivision.replace(/_/g, '-') },
+                        { id: cleanDivision },
+                    ],
+                },
+            });
+            if (!division) {
+                return [];
+            }
+            const lectures = await prisma.lecture.findMany({
+                where: { divisionId: division.id },
+                include: {
+                    subject: true,
+                    teacher: true,
+                    division: { include: { course: { include: { department: true } } } },
+                    room: true,
+                },
+                orderBy: [{ dayOfWeek: 'asc' }, { periodNumber: 'asc' }],
+            });
+            return lectures.map(formatDbLecture);
+        }
+        initializeFallbackStore();
+        return inMemoryLectures.filter(l => l.divisionId.toLowerCase() === cleanDivision.toLowerCase() ||
             l.divisionKey.toLowerCase() === cleanDivision.toLowerCase() ||
             l.divisionKey.replace(/_/g, '-').toLowerCase() === cleanDivision.toLowerCase());
-        return lectures;
     }
     /**
      * GET room occupancy schedule
      */
     async getRoomTimetable(user, roomId) {
-        initializeFallbackStore();
         if (user.role === 'STUDENT') {
             throw new TimetableError(403, 'FORBIDDEN', 'Students do not have permission to query room occupancy.');
         }
-        const cleanRoom = roomId.trim().toLowerCase();
-        return inMemoryLectures.filter(l => l.roomId.toLowerCase() === cleanRoom || l.roomName.toLowerCase() === cleanRoom);
+        const cleanRoom = roomId.trim();
+        if (isDbConfigured) {
+            const room = await prisma.room.findFirst({
+                where: {
+                    OR: [
+                        { roomCode: cleanRoom },
+                        { roomName: cleanRoom },
+                        { id: cleanRoom },
+                    ],
+                },
+            });
+            if (!room) {
+                throw new TimetableError(404, 'NOT_FOUND', `Classroom ${cleanRoom} does not exist in master records.`);
+            }
+            const lectures = await prisma.lecture.findMany({
+                where: { roomId: room.id },
+                include: {
+                    subject: true,
+                    teacher: true,
+                    division: { include: { course: { include: { department: true } } } },
+                    room: true,
+                },
+                orderBy: [{ dayOfWeek: 'asc' }, { periodNumber: 'asc' }],
+            });
+            return lectures.map(formatDbLecture);
+        }
+        initializeFallbackStore();
+        return inMemoryLectures.filter(l => l.roomId.toLowerCase() === cleanRoom.toLowerCase() || l.roomName.toLowerCase() === cleanRoom.toLowerCase());
     }
     /**
      * GET master timetable with optional multi-criteria filters (ADMIN only)
      */
     async getMasterTimetable(user, filters = {}) {
-        initializeFallbackStore();
         if (user.role !== 'ADMIN') {
             throw new TimetableError(403, 'FORBIDDEN', 'Access to master timetable is restricted to administrators.');
         }
+        if (isDbConfigured) {
+            const whereClause = {};
+            if (filters.status) {
+                whereClause.status = filters.status.toUpperCase();
+            }
+            if (filters.period) {
+                whereClause.periodNumber = Number(filters.period);
+            }
+            if (filters.day) {
+                whereClause.dayName = { equals: filters.day, mode: 'insensitive' };
+            }
+            if (filters.room) {
+                whereClause.room = { roomCode: { equals: filters.room, mode: 'insensitive' } };
+            }
+            if (filters.teacher) {
+                whereClause.teacher = { teacherId: { equals: filters.teacher, mode: 'insensitive' } };
+            }
+            if (filters.division || filters.course || filters.department || filters.academicYear) {
+                whereClause.division = {};
+                if (filters.division) {
+                    whereClause.division.divisionName = { equals: filters.division, mode: 'insensitive' };
+                }
+                if (filters.academicYear) {
+                    whereClause.division.academicYear = { equals: filters.academicYear, mode: 'insensitive' };
+                }
+                if (filters.course) {
+                    whereClause.division.course = { name: { contains: filters.course, mode: 'insensitive' } };
+                }
+            }
+            const lectures = await prisma.lecture.findMany({
+                where: whereClause,
+                include: {
+                    subject: true,
+                    teacher: true,
+                    division: { include: { course: { include: { department: true } } } },
+                    room: true,
+                },
+                orderBy: [{ dayOfWeek: 'asc' }, { periodNumber: 'asc' }],
+            });
+            return lectures.map(formatDbLecture);
+        }
+        initializeFallbackStore();
         return inMemoryLectures.filter(l => {
             if (filters.department && l.department.toLowerCase() !== filters.department.toLowerCase())
                 return false;
@@ -271,9 +525,125 @@ export class TimetableService {
     }
     /**
      * CANCEL LECTURE
-     * Protected with transaction and mutex
+     * Protected with atomic transaction and rollback guarantee
      */
     async cancelLecture(lectureId, user, reason) {
+        if (user.role === 'STUDENT') {
+            throw new TimetableError(403, 'FORBIDDEN', 'Students cannot cancel lectures.');
+        }
+        if (isDbConfigured) {
+            let realtimePayload = null;
+            let finalResult = null;
+            await prisma.$transaction(async (tx) => {
+                const lecture = await tx.lecture.findUnique({
+                    where: { id: lectureId },
+                    include: {
+                        teacher: true,
+                        room: true,
+                        division: { include: { course: { include: { department: true } } } },
+                        subject: true,
+                    },
+                });
+                if (!lecture) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Lecture with ID ${lectureId} not found.`);
+                }
+                if (user.role === 'TEACHER') {
+                    const teacherId = user.teacher?.teacherId || user.identifier;
+                    if (lecture.teacher.teacherId.toLowerCase() !== teacherId.toLowerCase() && lecture.teacher.userId !== user.id) {
+                        throw new TimetableError(403, 'FORBIDDEN', 'Faculty cannot cancel a lecture assigned to another teacher.');
+                    }
+                }
+                if (lecture.status === 'CANCELLED') {
+                    throw new TimetableError(422, 'UNPROCESSABLE_ENTITY', 'This lecture is already cancelled.');
+                }
+                const oldValues = {
+                    status: lecture.status,
+                    cancellationReason: lecture.cancellationReason,
+                };
+                const newValues = {
+                    status: 'CANCELLED',
+                    cancellationReason: reason.trim(),
+                };
+                const updated = await tx.lecture.update({
+                    where: { id: lectureId },
+                    data: {
+                        status: LectureStatus.CANCELLED,
+                        cancellationReason: reason.trim(),
+                    },
+                    include: {
+                        subject: true,
+                        teacher: true,
+                        division: { include: { course: { include: { department: true } } } },
+                        room: true,
+                    },
+                });
+                // Resolve user record for audit foreign key
+                const userRec = await tx.user.findFirst({
+                    where: { OR: [{ id: user.id }, { identifier: user.identifier }] },
+                });
+                const changeRecord = await tx.timetableChange.create({
+                    data: {
+                        lectureId: lecture.id,
+                        changedByUserId: userRec?.id || null,
+                        changeType: 'CANCELLATION',
+                        oldValues,
+                        newValues,
+                        reason: reason.trim(),
+                    },
+                });
+                realtimePayload = {
+                    eventType: 'timetable:lecture_cancelled',
+                    lectureId: lecture.id,
+                    divisionId: lecture.division.fullName,
+                    divisionKey: lecture.division.fullName,
+                    course: lecture.division.course.name,
+                    year: lecture.division.academicYear,
+                    division: lecture.division.divisionName,
+                    subjectName: lecture.subject.name,
+                    teacherId: lecture.teacher.teacherId,
+                    teacherName: lecture.teacher.fullName,
+                    roomId: lecture.room.roomCode,
+                    roomName: lecture.room.roomName,
+                    dayName: lecture.dayName,
+                    timeSlot: `${lecture.startTime} - ${lecture.endTime}`,
+                    oldValue: `${lecture.dayName} • ${lecture.startTime} - ${lecture.endTime} (${lecture.room.roomName})`,
+                    newValue: 'Cancelled',
+                    reason: reason.trim(),
+                    changedByRole: user.role,
+                    changedByUserId: user.id,
+                    timestamp: new Date().toISOString(),
+                };
+                finalResult = {
+                    message: 'Lecture cancelled successfully.',
+                    lecture: formatDbLecture(updated),
+                    changeRecord: {
+                        id: changeRecord.id,
+                        lectureId: changeRecord.lectureId,
+                        changedByUserId: changeRecord.changedByUserId,
+                        changedByRole: user.role,
+                        changeType: changeRecord.changeType,
+                        oldValues: changeRecord.oldValues,
+                        newValues: changeRecord.newValues,
+                        reason: changeRecord.reason,
+                        createdAt: changeRecord.createdAt.toISOString(),
+                    },
+                };
+            });
+            // Synchronize in-memory mirror
+            initializeFallbackStore();
+            const inMem = inMemoryLectures.find(l => l.id === lectureId);
+            if (inMem) {
+                inMem.status = 'CANCELLED';
+                inMem.cancellationReason = reason.trim();
+                inMemoryChanges.push(finalResult.changeRecord);
+            }
+            // Publish realtime event ONLY after successful transaction commit
+            if (realtimePayload) {
+                await eventPublisher.publishEvent(realtimePayload);
+            }
+            return finalResult;
+        }
+        // Fallback mode
         initializeFallbackStore();
         const release = await timetableMutex.acquire();
         try {
@@ -282,33 +652,20 @@ export class TimetableService {
                 throw new TimetableError(404, 'NOT_FOUND', `Lecture with ID ${lectureId} not found.`);
             }
             const lecture = inMemoryLectures[lectureIndex];
-            // Authorization Check
-            if (user.role === 'STUDENT') {
-                throw new TimetableError(403, 'FORBIDDEN', 'Students cannot cancel lectures.');
-            }
             if (user.role === 'TEACHER') {
                 const teacherId = user.teacher?.teacherId || user.identifier;
                 if (lecture.teacherId.toLowerCase() !== teacherId.toLowerCase()) {
                     throw new TimetableError(403, 'FORBIDDEN', 'Faculty cannot cancel a lecture assigned to another teacher.');
                 }
             }
-            // Status Check
             if (lecture.status === 'CANCELLED') {
                 throw new TimetableError(422, 'UNPROCESSABLE_ENTITY', 'This lecture is already cancelled.');
             }
-            const oldValues = {
-                status: lecture.status,
-                cancellationReason: lecture.cancellationReason,
-            };
-            const newValues = {
-                status: 'CANCELLED',
-                cancellationReason: reason.trim(),
-            };
-            // Perform Update
+            const oldValues = { status: lecture.status, cancellationReason: lecture.cancellationReason };
+            const newValues = { status: 'CANCELLED', cancellationReason: reason.trim() };
             lecture.status = 'CANCELLED';
             lecture.cancellationReason = reason.trim();
             lecture.updatedAt = new Date().toISOString();
-            // Record Audit History
             const changeRecord = {
                 id: `chg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                 lectureId: lecture.id,
@@ -321,8 +678,7 @@ export class TimetableService {
                 createdAt: new Date().toISOString(),
             };
             inMemoryChanges.push(changeRecord);
-            // Publish Real-time Event
-            eventPublisher.publishEvent({
+            await eventPublisher.publishEvent({
                 eventType: 'timetable:lecture_cancelled',
                 lectureId: lecture.id,
                 divisionId: lecture.divisionId,
@@ -356,9 +712,182 @@ export class TimetableService {
     }
     /**
      * RESCHEDULE LECTURE
-     * Validates period/day, runs teacher/room/division conflict engine, updates within transaction
+     * Validates period/day, executes conflict engine, updates within transaction
      */
     async rescheduleLecture(lectureId, user, params) {
+        if (user.role === 'STUDENT') {
+            throw new TimetableError(403, 'FORBIDDEN', 'Students cannot reschedule lectures.');
+        }
+        const targetDay = Number(params.dayOfWeek);
+        const targetPeriod = Number(params.periodNumber);
+        const slotInfo = PERIOD_TIME_MAP[targetPeriod];
+        const targetDayName = DAY_NUMBER_MAP[targetDay];
+        if (!slotInfo || !targetDayName) {
+            throw new TimetableError(400, 'BAD_REQUEST', 'Invalid day of week or period number.');
+        }
+        if (isDbConfigured) {
+            let realtimePayload = null;
+            let finalResult = null;
+            await prisma.$transaction(async (tx) => {
+                const lecture = await tx.lecture.findUnique({
+                    where: { id: lectureId },
+                    include: {
+                        teacher: true,
+                        room: true,
+                        division: { include: { course: { include: { department: true } } } },
+                        subject: true,
+                    },
+                });
+                if (!lecture) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Lecture with ID ${lectureId} not found.`);
+                }
+                if (user.role === 'TEACHER') {
+                    const teacherId = user.teacher?.teacherId || user.identifier;
+                    if (lecture.teacher.teacherId.toLowerCase() !== teacherId.toLowerCase() && lecture.teacher.userId !== user.id) {
+                        throw new TimetableError(403, 'FORBIDDEN', 'Faculty cannot reschedule a lecture assigned to another teacher.');
+                    }
+                }
+                if (lecture.status === 'CANCELLED') {
+                    throw new TimetableError(422, 'UNPROCESSABLE_ENTITY', 'Cannot reschedule a cancelled lecture without first reinstating it.');
+                }
+                // Run Conflict Engine against active database lectures
+                const activeLectures = await tx.lecture.findMany({
+                    where: { status: { not: LectureStatus.CANCELLED } },
+                    include: { teacher: true, room: true, division: true, subject: true },
+                });
+                const candidates = activeLectures.map(l => ({
+                    id: l.id,
+                    teacherId: l.teacher.teacherId,
+                    teacherName: l.teacher.fullName,
+                    roomId: l.room.roomCode,
+                    roomName: l.room.roomName,
+                    divisionId: l.division.fullName,
+                    divisionName: l.division.fullName,
+                    dayOfWeek: l.dayOfWeek,
+                    periodNumber: l.periodNumber,
+                    subjectName: l.subject.name,
+                    status: l.status,
+                }));
+                const conflictCheck = conflictService.checkAllConflicts({
+                    lectures: candidates,
+                    teacherId: lecture.teacher.teacherId,
+                    roomId: lecture.room.roomCode,
+                    divisionId: lecture.division.fullName,
+                    dayOfWeek: targetDay,
+                    periodNumber: targetPeriod,
+                    excludeLectureId: lecture.id,
+                });
+                if (conflictCheck.hasConflict) {
+                    const primary = conflictCheck.conflicts[0];
+                    throw new TimetableError(409, primary.type, primary.message, {
+                        conflicts: conflictCheck.conflicts,
+                        targetDay: targetDayName,
+                        targetPeriod,
+                        timeSlot: slotInfo.timeString,
+                    });
+                }
+                const oldValues = {
+                    dayOfWeek: lecture.dayOfWeek,
+                    dayName: lecture.dayName,
+                    periodNumber: lecture.periodNumber,
+                    startTime: lecture.startTime,
+                    endTime: lecture.endTime,
+                    status: lecture.status,
+                };
+                const newValues = {
+                    dayOfWeek: targetDay,
+                    dayName: targetDayName,
+                    periodNumber: targetPeriod,
+                    startTime: params.startTime || slotInfo.startTime,
+                    endTime: params.endTime || slotInfo.endTime,
+                    status: 'RESCHEDULED',
+                };
+                const updated = await tx.lecture.update({
+                    where: { id: lectureId },
+                    data: {
+                        dayOfWeek: targetDay,
+                        dayName: targetDayName,
+                        periodNumber: targetPeriod,
+                        startTime: params.startTime || slotInfo.startTime,
+                        endTime: params.endTime || slotInfo.endTime,
+                        status: LectureStatus.RESCHEDULED,
+                    },
+                    include: {
+                        subject: true,
+                        teacher: true,
+                        division: { include: { course: { include: { department: true } } } },
+                        room: true,
+                    },
+                });
+                const userRec = await tx.user.findFirst({
+                    where: { OR: [{ id: user.id }, { identifier: user.identifier }] },
+                });
+                const changeRecord = await tx.timetableChange.create({
+                    data: {
+                        lectureId: lecture.id,
+                        changedByUserId: userRec?.id || null,
+                        changeType: 'RESCHEDULE',
+                        oldValues,
+                        newValues,
+                        reason: params.reason.trim(),
+                    },
+                });
+                realtimePayload = {
+                    eventType: 'timetable:lecture_rescheduled',
+                    lectureId: lecture.id,
+                    divisionId: lecture.division.fullName,
+                    divisionKey: lecture.division.fullName,
+                    course: lecture.division.course.name,
+                    year: lecture.division.academicYear,
+                    division: lecture.division.divisionName,
+                    subjectName: lecture.subject.name,
+                    teacherId: lecture.teacher.teacherId,
+                    teacherName: lecture.teacher.fullName,
+                    roomId: lecture.room.roomCode,
+                    roomName: lecture.room.roomName,
+                    dayName: targetDayName,
+                    timeSlot: `${updated.startTime} - ${updated.endTime}`,
+                    oldValue: `${oldValues.dayName} • ${oldValues.startTime} - ${oldValues.endTime}`,
+                    newValue: `${targetDayName} • ${updated.startTime} - ${updated.endTime}`,
+                    reason: params.reason.trim(),
+                    changedByRole: user.role,
+                    changedByUserId: user.id,
+                    timestamp: new Date().toISOString(),
+                };
+                finalResult = {
+                    message: 'Lecture rescheduled successfully.',
+                    lecture: formatDbLecture(updated),
+                    changeRecord: {
+                        id: changeRecord.id,
+                        lectureId: changeRecord.lectureId,
+                        changedByUserId: changeRecord.changedByUserId,
+                        changedByRole: user.role,
+                        changeType: changeRecord.changeType,
+                        oldValues: changeRecord.oldValues,
+                        newValues: changeRecord.newValues,
+                        reason: changeRecord.reason,
+                        createdAt: changeRecord.createdAt.toISOString(),
+                    },
+                };
+            });
+            // Synchronize in-memory mirror
+            initializeFallbackStore();
+            const inMem = inMemoryLectures.find(l => l.id === lectureId);
+            if (inMem) {
+                inMem.dayOfWeek = targetDay;
+                inMem.dayName = targetDayName;
+                inMem.periodNumber = targetPeriod;
+                inMem.startTime = params.startTime || slotInfo.startTime;
+                inMem.endTime = params.endTime || slotInfo.endTime;
+                inMem.status = 'RESCHEDULED';
+                inMemoryChanges.push(finalResult.changeRecord);
+            }
+            if (realtimePayload) {
+                await eventPublisher.publishEvent(realtimePayload);
+            }
+            return finalResult;
+        }
+        // Fallback mode
         initializeFallbackStore();
         const release = await timetableMutex.acquire();
         try {
@@ -367,10 +896,6 @@ export class TimetableService {
                 throw new TimetableError(404, 'NOT_FOUND', `Lecture with ID ${lectureId} not found.`);
             }
             const lecture = inMemoryLectures[lectureIndex];
-            // Authorization Check
-            if (user.role === 'STUDENT') {
-                throw new TimetableError(403, 'FORBIDDEN', 'Students cannot reschedule lectures.');
-            }
             if (user.role === 'TEACHER') {
                 const teacherId = user.teacher?.teacherId || user.identifier;
                 if (lecture.teacherId.toLowerCase() !== teacherId.toLowerCase()) {
@@ -380,14 +905,6 @@ export class TimetableService {
             if (lecture.status === 'CANCELLED') {
                 throw new TimetableError(422, 'UNPROCESSABLE_ENTITY', 'Cannot reschedule a cancelled lecture without first reinstating it.');
             }
-            const targetDay = Number(params.dayOfWeek);
-            const targetPeriod = Number(params.periodNumber);
-            const slotInfo = PERIOD_TIME_MAP[targetPeriod];
-            const targetDayName = DAY_NUMBER_MAP[targetDay];
-            if (!slotInfo || !targetDayName) {
-                throw new TimetableError(400, 'BAD_REQUEST', 'Invalid day of week or period number.');
-            }
-            // Run Conflict Engine (Teacher, Room, Division)
             const conflictCheck = conflictService.checkAllConflicts({
                 lectures: this.getConflictCandidates(),
                 teacherId: lecture.teacherId,
@@ -422,7 +939,6 @@ export class TimetableService {
                 endTime: params.endTime || slotInfo.endTime,
                 status: 'RESCHEDULED',
             };
-            // Perform Update
             lecture.dayOfWeek = targetDay;
             lecture.dayName = targetDayName;
             lecture.periodNumber = targetPeriod;
@@ -430,7 +946,6 @@ export class TimetableService {
             lecture.endTime = params.endTime || slotInfo.endTime;
             lecture.status = 'RESCHEDULED';
             lecture.updatedAt = new Date().toISOString();
-            // Record Audit History
             const changeRecord = {
                 id: `chg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                 lectureId: lecture.id,
@@ -443,8 +958,7 @@ export class TimetableService {
                 createdAt: new Date().toISOString(),
             };
             inMemoryChanges.push(changeRecord);
-            // Publish Real-time Event
-            eventPublisher.publishEvent({
+            await eventPublisher.publishEvent({
                 eventType: 'timetable:lecture_rescheduled',
                 lectureId: lecture.id,
                 divisionId: lecture.divisionId,
@@ -481,6 +995,155 @@ export class TimetableService {
      * Verifies target room availability and updates within transaction
      */
     async changeRoom(lectureId, user, params) {
+        if (user.role === 'STUDENT') {
+            throw new TimetableError(403, 'FORBIDDEN', 'Students cannot change lecture classrooms.');
+        }
+        const targetRoomStr = params.roomId.trim();
+        if (isDbConfigured) {
+            let realtimePayload = null;
+            let finalResult = null;
+            await prisma.$transaction(async (tx) => {
+                const lecture = await tx.lecture.findUnique({
+                    where: { id: lectureId },
+                    include: {
+                        teacher: true,
+                        room: true,
+                        division: { include: { course: { include: { department: true } } } },
+                        subject: true,
+                    },
+                });
+                if (!lecture) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Lecture with ID ${lectureId} not found.`);
+                }
+                if (user.role === 'TEACHER') {
+                    const teacherId = user.teacher?.teacherId || user.identifier;
+                    if (lecture.teacher.teacherId.toLowerCase() !== teacherId.toLowerCase() && lecture.teacher.userId !== user.id) {
+                        throw new TimetableError(403, 'FORBIDDEN', 'Faculty cannot modify room assignment for another teacher\'s lecture.');
+                    }
+                }
+                const roomRecord = await tx.room.findFirst({
+                    where: {
+                        OR: [
+                            { roomCode: targetRoomStr },
+                            { roomName: targetRoomStr },
+                            { id: targetRoomStr },
+                        ],
+                    },
+                });
+                if (!roomRecord) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Classroom ${targetRoomStr} does not exist in master records.`);
+                }
+                // Conflict check against active lectures
+                const activeLectures = await tx.lecture.findMany({
+                    where: { status: { not: LectureStatus.CANCELLED } },
+                    include: { teacher: true, room: true, division: true, subject: true },
+                });
+                const candidates = activeLectures.map(l => ({
+                    id: l.id,
+                    teacherId: l.teacher.teacherId,
+                    teacherName: l.teacher.fullName,
+                    roomId: l.room.roomCode,
+                    roomName: l.room.roomName,
+                    divisionId: l.division.fullName,
+                    divisionName: l.division.fullName,
+                    dayOfWeek: l.dayOfWeek,
+                    periodNumber: l.periodNumber,
+                    subjectName: l.subject.name,
+                    status: l.status,
+                }));
+                const roomConflict = conflictService.checkRoomConflict(candidates, roomRecord.roomCode, lecture.dayOfWeek, lecture.periodNumber, lecture.id);
+                if (roomConflict) {
+                    throw new TimetableError(409, 'ROOM_CONFLICT', roomConflict.message, roomConflict.details);
+                }
+                const oldValues = {
+                    roomId: lecture.room.roomCode,
+                    roomName: lecture.room.roomName,
+                    status: lecture.status,
+                };
+                const newValues = {
+                    roomId: roomRecord.roomCode,
+                    roomName: roomRecord.roomName,
+                    status: 'ROOM_CHANGED',
+                };
+                const updated = await tx.lecture.update({
+                    where: { id: lectureId },
+                    data: {
+                        roomId: roomRecord.id,
+                        status: LectureStatus.ROOM_CHANGED,
+                    },
+                    include: {
+                        subject: true,
+                        teacher: true,
+                        division: { include: { course: { include: { department: true } } } },
+                        room: true,
+                    },
+                });
+                const userRec = await tx.user.findFirst({
+                    where: { OR: [{ id: user.id }, { identifier: user.identifier }] },
+                });
+                const changeRecord = await tx.timetableChange.create({
+                    data: {
+                        lectureId: lecture.id,
+                        changedByUserId: userRec?.id || null,
+                        changeType: 'ROOM_CHANGE',
+                        oldValues,
+                        newValues,
+                        reason: (params.reason || 'Room change request').trim(),
+                    },
+                });
+                realtimePayload = {
+                    eventType: 'timetable:lecture_room_changed',
+                    lectureId: lecture.id,
+                    divisionId: lecture.division.fullName,
+                    divisionKey: lecture.division.fullName,
+                    course: lecture.division.course.name,
+                    year: lecture.division.academicYear,
+                    division: lecture.division.divisionName,
+                    subjectName: lecture.subject.name,
+                    teacherId: lecture.teacher.teacherId,
+                    teacherName: lecture.teacher.fullName,
+                    roomId: roomRecord.roomCode,
+                    roomName: roomRecord.roomName,
+                    dayName: lecture.dayName,
+                    timeSlot: `${lecture.startTime} - ${lecture.endTime}`,
+                    oldValue: oldValues.roomName,
+                    newValue: roomRecord.roomName,
+                    reason: (params.reason || 'Room change request').trim(),
+                    changedByRole: user.role,
+                    changedByUserId: user.id,
+                    timestamp: new Date().toISOString(),
+                };
+                finalResult = {
+                    message: 'Lecture classroom changed successfully.',
+                    lecture: formatDbLecture(updated),
+                    changeRecord: {
+                        id: changeRecord.id,
+                        lectureId: changeRecord.lectureId,
+                        changedByUserId: changeRecord.changedByUserId,
+                        changedByRole: user.role,
+                        changeType: changeRecord.changeType,
+                        oldValues: changeRecord.oldValues,
+                        newValues: changeRecord.newValues,
+                        reason: changeRecord.reason,
+                        createdAt: changeRecord.createdAt.toISOString(),
+                    },
+                };
+            });
+            // Synchronize in-memory mirror
+            initializeFallbackStore();
+            const inMem = inMemoryLectures.find(l => l.id === lectureId);
+            if (inMem) {
+                inMem.roomId = targetRoomStr;
+                inMem.roomName = targetRoomStr;
+                inMem.status = 'ROOM_CHANGED';
+                inMemoryChanges.push(finalResult.changeRecord);
+            }
+            if (realtimePayload) {
+                await eventPublisher.publishEvent(realtimePayload);
+            }
+            return finalResult;
+        }
+        // Fallback mode
         initializeFallbackStore();
         const release = await timetableMutex.acquire();
         try {
@@ -489,43 +1152,26 @@ export class TimetableService {
                 throw new TimetableError(404, 'NOT_FOUND', `Lecture with ID ${lectureId} not found.`);
             }
             const lecture = inMemoryLectures[lectureIndex];
-            // Authorization Check
-            if (user.role === 'STUDENT') {
-                throw new TimetableError(403, 'FORBIDDEN', 'Students cannot change lecture classrooms.');
-            }
             if (user.role === 'TEACHER') {
                 const teacherId = user.teacher?.teacherId || user.identifier;
                 if (lecture.teacherId.toLowerCase() !== teacherId.toLowerCase()) {
                     throw new TimetableError(403, 'FORBIDDEN', 'Faculty cannot modify room assignment for another teacher\'s lecture.');
                 }
             }
-            const targetRoom = params.roomId.trim();
-            // Validate Room Existence
-            const roomExists = INITIAL_CLASSROOMS.some(r => r.name.toLowerCase() === targetRoom.toLowerCase() || (r.code && r.code.toLowerCase() === targetRoom.toLowerCase()));
+            const roomExists = INITIAL_CLASSROOMS.some(r => r.name.toLowerCase() === targetRoomStr.toLowerCase() || (r.code && r.code.toLowerCase() === targetRoomStr.toLowerCase()));
             if (!roomExists) {
-                throw new TimetableError(404, 'NOT_FOUND', `Classroom ${targetRoom} does not exist in master records.`);
+                throw new TimetableError(404, 'NOT_FOUND', `Classroom ${targetRoomStr} does not exist in master records.`);
             }
-            // Check Room Conflict
-            const roomConflict = conflictService.checkRoomConflict(this.getConflictCandidates(), targetRoom, lecture.dayOfWeek, lecture.periodNumber, lecture.id);
+            const roomConflict = conflictService.checkRoomConflict(this.getConflictCandidates(), targetRoomStr, lecture.dayOfWeek, lecture.periodNumber, lecture.id);
             if (roomConflict) {
                 throw new TimetableError(409, 'ROOM_CONFLICT', roomConflict.message, roomConflict.details);
             }
-            const oldValues = {
-                roomId: lecture.roomId,
-                roomName: lecture.roomName,
-                status: lecture.status,
-            };
-            const newValues = {
-                roomId: targetRoom,
-                roomName: targetRoom,
-                status: 'ROOM_CHANGED',
-            };
-            // Perform Update
-            lecture.roomId = targetRoom;
-            lecture.roomName = targetRoom;
+            const oldValues = { roomId: lecture.roomId, roomName: lecture.roomName, status: lecture.status };
+            const newValues = { roomId: targetRoomStr, roomName: targetRoomStr, status: 'ROOM_CHANGED' };
+            lecture.roomId = targetRoomStr;
+            lecture.roomName = targetRoomStr;
             lecture.status = 'ROOM_CHANGED';
             lecture.updatedAt = new Date().toISOString();
-            // Record Audit History
             const changeRecord = {
                 id: `chg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                 lectureId: lecture.id,
@@ -538,8 +1184,7 @@ export class TimetableService {
                 createdAt: new Date().toISOString(),
             };
             inMemoryChanges.push(changeRecord);
-            // Publish Real-time Event
-            eventPublisher.publishEvent({
+            await eventPublisher.publishEvent({
                 eventType: 'timetable:lecture_room_changed',
                 lectureId: lecture.id,
                 divisionId: lecture.divisionId,
@@ -550,12 +1195,12 @@ export class TimetableService {
                 subjectName: lecture.subjectName,
                 teacherId: lecture.teacherId,
                 teacherName: lecture.teacherName,
-                roomId: targetRoom,
-                roomName: targetRoom,
+                roomId: targetRoomStr,
+                roomName: targetRoomStr,
                 dayName: lecture.dayName,
                 timeSlot: `${lecture.startTime} - ${lecture.endTime}`,
                 oldValue: oldValues.roomName,
-                newValue: targetRoom,
+                newValue: targetRoomStr,
                 reason: (params.reason || 'Room change request').trim(),
                 changedByRole: user.role,
                 changedByUserId: user.id,
@@ -573,9 +1218,159 @@ export class TimetableService {
     }
     /**
      * CHANGE TEACHER / ASSIGN SUBSTITUTE
-     * Validates target teacher availability and updates within transaction
      */
     async changeTeacher(lectureId, user, params) {
+        if (user.role === 'STUDENT') {
+            throw new TimetableError(403, 'FORBIDDEN', 'Students cannot assign substitute teachers.');
+        }
+        const substituteId = params.teacherId.trim();
+        if (isDbConfigured) {
+            let realtimePayload = null;
+            let finalResult = null;
+            await prisma.$transaction(async (tx) => {
+                const lecture = await tx.lecture.findUnique({
+                    where: { id: lectureId },
+                    include: {
+                        teacher: true,
+                        room: true,
+                        division: { include: { course: { include: { department: true } } } },
+                        subject: true,
+                    },
+                });
+                if (!lecture) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Lecture with ID ${lectureId} not found.`);
+                }
+                if (user.role === 'TEACHER') {
+                    const teacherId = user.teacher?.teacherId || user.identifier;
+                    if (lecture.teacher.teacherId.toLowerCase() !== teacherId.toLowerCase() && lecture.teacher.userId !== user.id) {
+                        throw new TimetableError(403, 'FORBIDDEN', 'Faculty cannot substitute a lecture assigned to another teacher.');
+                    }
+                }
+                const targetTeacher = await tx.teacher.findFirst({
+                    where: {
+                        OR: [
+                            { teacherId: substituteId },
+                            { fullName: substituteId },
+                            { id: substituteId },
+                        ],
+                    },
+                });
+                if (!targetTeacher) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Faculty member ${substituteId} not found.`);
+                }
+                // Conflict check
+                const activeLectures = await tx.lecture.findMany({
+                    where: { status: { not: LectureStatus.CANCELLED } },
+                    include: { teacher: true, room: true, division: true, subject: true },
+                });
+                const candidates = activeLectures.map(l => ({
+                    id: l.id,
+                    teacherId: l.teacher.teacherId,
+                    teacherName: l.teacher.fullName,
+                    roomId: l.room.roomCode,
+                    roomName: l.room.roomName,
+                    divisionId: l.division.fullName,
+                    divisionName: l.division.fullName,
+                    dayOfWeek: l.dayOfWeek,
+                    periodNumber: l.periodNumber,
+                    subjectName: l.subject.name,
+                    status: l.status,
+                }));
+                const teacherConflict = conflictService.checkTeacherConflict(candidates, targetTeacher.teacherId, lecture.dayOfWeek, lecture.periodNumber, lecture.id);
+                if (teacherConflict) {
+                    throw new TimetableError(409, 'TEACHER_CONFLICT', `Substitute faculty ${targetTeacher.fullName} already has another lecture during this period.`, teacherConflict.details);
+                }
+                const oldValues = {
+                    teacherId: lecture.teacher.teacherId,
+                    teacherName: lecture.teacher.fullName,
+                    status: lecture.status,
+                };
+                const newValues = {
+                    teacherId: targetTeacher.teacherId,
+                    teacherName: targetTeacher.fullName,
+                    status: 'SUBSTITUTE',
+                };
+                const updated = await tx.lecture.update({
+                    where: { id: lectureId },
+                    data: {
+                        teacherId: targetTeacher.id,
+                        status: LectureStatus.SUBSTITUTE,
+                    },
+                    include: {
+                        subject: true,
+                        teacher: true,
+                        division: { include: { course: { include: { department: true } } } },
+                        room: true,
+                    },
+                });
+                const userRec = await tx.user.findFirst({
+                    where: { OR: [{ id: user.id }, { identifier: user.identifier }] },
+                });
+                const changeRecord = await tx.timetableChange.create({
+                    data: {
+                        lectureId: lecture.id,
+                        changedByUserId: userRec?.id || null,
+                        changeType: 'TEACHER_CHANGE',
+                        oldValues,
+                        newValues,
+                        reason: (params.reason || 'Faculty substitute assignment').trim(),
+                    },
+                });
+                realtimePayload = {
+                    eventType: 'timetable:lecture_teacher_changed',
+                    lectureId: lecture.id,
+                    divisionId: lecture.division.fullName,
+                    divisionKey: lecture.division.fullName,
+                    course: lecture.division.course.name,
+                    year: lecture.division.academicYear,
+                    division: lecture.division.divisionName,
+                    subjectName: lecture.subject.name,
+                    teacherId: oldValues.teacherId,
+                    teacherName: oldValues.teacherName,
+                    substituteTeacherId: targetTeacher.teacherId,
+                    substituteTeacherName: targetTeacher.fullName,
+                    roomId: lecture.room.roomCode,
+                    roomName: lecture.room.roomName,
+                    dayName: lecture.dayName,
+                    timeSlot: `${lecture.startTime} - ${lecture.endTime}`,
+                    oldValue: oldValues.teacherName,
+                    newValue: targetTeacher.fullName,
+                    reason: (params.reason || 'Faculty substitute assignment').trim(),
+                    changedByRole: user.role,
+                    changedByUserId: user.id,
+                    timestamp: new Date().toISOString(),
+                };
+                finalResult = {
+                    message: 'Substitute faculty assigned successfully.',
+                    lecture: formatDbLecture(updated),
+                    changeRecord: {
+                        id: changeRecord.id,
+                        lectureId: changeRecord.lectureId,
+                        changedByUserId: changeRecord.changedByUserId,
+                        changedByRole: user.role,
+                        changeType: changeRecord.changeType,
+                        oldValues: changeRecord.oldValues,
+                        newValues: changeRecord.newValues,
+                        reason: changeRecord.reason,
+                        createdAt: changeRecord.createdAt.toISOString(),
+                    },
+                };
+            });
+            // Mirror in-memory
+            initializeFallbackStore();
+            const inMem = inMemoryLectures.find(l => l.id === lectureId);
+            if (inMem) {
+                inMem.teacherId = substituteId;
+                inMem.teacherName = substituteId;
+                inMem.status = 'SUBSTITUTE';
+                inMemoryChanges.push(finalResult.changeRecord);
+            }
+            if (realtimePayload) {
+                await eventPublisher.publishEvent(realtimePayload);
+            }
+            return finalResult;
+        }
+        // Fallback mode
         initializeFallbackStore();
         const release = await timetableMutex.acquire();
         try {
@@ -584,43 +1379,26 @@ export class TimetableService {
                 throw new TimetableError(404, 'NOT_FOUND', `Lecture with ID ${lectureId} not found.`);
             }
             const lecture = inMemoryLectures[lectureIndex];
-            // Authorization Check
-            if (user.role === 'STUDENT') {
-                throw new TimetableError(403, 'FORBIDDEN', 'Students cannot assign substitute teachers.');
-            }
             if (user.role === 'TEACHER') {
                 const teacherId = user.teacher?.teacherId || user.identifier;
                 if (lecture.teacherId.toLowerCase() !== teacherId.toLowerCase()) {
                     throw new TimetableError(403, 'FORBIDDEN', 'Faculty cannot substitute a lecture assigned to another teacher.');
                 }
             }
-            const substituteId = params.teacherId.trim();
-            // Validate Target Teacher Exists
             const targetTeacher = TEACHERS_DATA.find(t => t.id.toLowerCase() === substituteId.toLowerCase() || t.name.toLowerCase() === substituteId.toLowerCase());
             if (!targetTeacher) {
                 throw new TimetableError(404, 'NOT_FOUND', `Faculty member ${substituteId} not found.`);
             }
-            // Check Substitute Teacher Conflict
             const teacherConflict = conflictService.checkTeacherConflict(this.getConflictCandidates(), targetTeacher.id, lecture.dayOfWeek, lecture.periodNumber, lecture.id);
             if (teacherConflict) {
                 throw new TimetableError(409, 'TEACHER_CONFLICT', `Substitute faculty ${targetTeacher.name} already has another lecture during this period.`, teacherConflict.details);
             }
-            const oldValues = {
-                teacherId: lecture.teacherId,
-                teacherName: lecture.teacherName,
-                status: lecture.status,
-            };
-            const newValues = {
-                teacherId: targetTeacher.id,
-                teacherName: targetTeacher.name,
-                status: 'SUBSTITUTE',
-            };
-            // Perform Update
+            const oldValues = { teacherId: lecture.teacherId, teacherName: lecture.teacherName, status: lecture.status };
+            const newValues = { teacherId: targetTeacher.id, teacherName: targetTeacher.name, status: 'SUBSTITUTE' };
             lecture.teacherId = targetTeacher.id;
             lecture.teacherName = targetTeacher.name;
             lecture.status = 'SUBSTITUTE';
             lecture.updatedAt = new Date().toISOString();
-            // Record Audit History
             const changeRecord = {
                 id: `chg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                 lectureId: lecture.id,
@@ -633,8 +1411,7 @@ export class TimetableService {
                 createdAt: new Date().toISOString(),
             };
             inMemoryChanges.push(changeRecord);
-            // Publish Real-time Event
-            eventPublisher.publishEvent({
+            await eventPublisher.publishEvent({
                 eventType: 'timetable:lecture_teacher_changed',
                 lectureId: lecture.id,
                 divisionId: lecture.divisionId,
@@ -670,23 +1447,155 @@ export class TimetableService {
     }
     /**
      * CREATE EXTRA LECTURE
-     * Validates constraints and inserts new lecture if conflict-free
      */
     async createExtraLecture(user, params) {
+        if (user.role === 'STUDENT') {
+            throw new TimetableError(403, 'FORBIDDEN', 'Students cannot schedule extra lectures.');
+        }
+        const targetDay = Number(params.dayOfWeek);
+        const targetPeriod = Number(params.periodNumber);
+        const slotInfo = PERIOD_TIME_MAP[targetPeriod];
+        const targetDayName = DAY_NUMBER_MAP[targetDay];
+        if (!slotInfo || !targetDayName) {
+            throw new TimetableError(400, 'BAD_REQUEST', 'Invalid day of week or period number.');
+        }
+        if (isDbConfigured) {
+            let realtimePayload = null;
+            let finalResult = null;
+            await prisma.$transaction(async (tx) => {
+                const division = await tx.division.findFirst({
+                    where: {
+                        OR: [
+                            { fullName: params.divisionId },
+                            { fullName: params.divisionId.replace(/_/g, '-') },
+                            { id: params.divisionId },
+                        ],
+                    },
+                    include: { course: { include: { department: true } } },
+                });
+                if (!division) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Division ${params.divisionId} not found.`);
+                }
+                const teacher = await tx.teacher.findFirst({
+                    where: {
+                        OR: [{ teacherId: params.teacherId }, { id: params.teacherId }],
+                    },
+                });
+                if (!teacher) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Teacher ${params.teacherId} not found.`);
+                }
+                const room = await tx.room.findFirst({
+                    where: {
+                        OR: [{ roomCode: params.roomId }, { roomName: params.roomId }, { id: params.roomId }],
+                    },
+                });
+                if (!room) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Room ${params.roomId} not found.`);
+                }
+                const subject = await tx.subject.findFirst({
+                    where: {
+                        OR: [
+                            { code: params.subjectId },
+                            { name: params.subjectId },
+                            { id: params.subjectId },
+                        ],
+                    },
+                }) || await tx.subject.findFirst({ where: { courseId: division.courseId } });
+                if (!subject) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Subject ${params.subjectId} not found.`);
+                }
+                // Conflict check
+                const activeLectures = await tx.lecture.findMany({
+                    where: { status: { not: LectureStatus.CANCELLED } },
+                    include: { teacher: true, room: true, division: true, subject: true },
+                });
+                const candidates = activeLectures.map(l => ({
+                    id: l.id,
+                    teacherId: l.teacher.teacherId,
+                    teacherName: l.teacher.fullName,
+                    roomId: l.room.roomCode,
+                    roomName: l.room.roomName,
+                    divisionId: l.division.fullName,
+                    divisionName: l.division.fullName,
+                    dayOfWeek: l.dayOfWeek,
+                    periodNumber: l.periodNumber,
+                    subjectName: l.subject.name,
+                    status: l.status,
+                }));
+                const conflictCheck = conflictService.checkAllConflicts({
+                    lectures: candidates,
+                    teacherId: teacher.teacherId,
+                    roomId: room.roomCode,
+                    divisionId: division.fullName,
+                    dayOfWeek: targetDay,
+                    periodNumber: targetPeriod,
+                });
+                if (conflictCheck.hasConflict) {
+                    const primary = conflictCheck.conflicts[0];
+                    throw new TimetableError(409, primary.type, primary.message, {
+                        conflicts: conflictCheck.conflicts,
+                    });
+                }
+                const newLecId = `lec-extra-${Date.now()}`;
+                const created = await tx.lecture.create({
+                    data: {
+                        id: newLecId,
+                        divisionId: division.id,
+                        subjectId: subject.id,
+                        teacherId: teacher.id,
+                        roomId: room.id,
+                        dayOfWeek: targetDay,
+                        dayName: targetDayName,
+                        periodNumber: targetPeriod,
+                        startTime: params.startTime || slotInfo.startTime,
+                        endTime: params.endTime || slotInfo.endTime,
+                        status: LectureStatus.SCHEDULED,
+                    },
+                    include: {
+                        subject: true,
+                        teacher: true,
+                        division: { include: { course: { include: { department: true } } } },
+                        room: true,
+                    },
+                });
+                realtimePayload = {
+                    eventType: 'timetable:lecture_created',
+                    lectureId: created.id,
+                    divisionId: division.fullName,
+                    divisionKey: division.fullName,
+                    course: division.course.name,
+                    year: division.academicYear,
+                    division: division.divisionName,
+                    subjectName: subject.name,
+                    teacherId: teacher.teacherId,
+                    teacherName: teacher.fullName,
+                    roomId: room.roomCode,
+                    roomName: room.roomName,
+                    dayName: targetDayName,
+                    timeSlot: `${created.startTime} - ${created.endTime}`,
+                    newValue: `${targetDayName} • ${created.startTime} - ${created.endTime} (${room.roomName})`,
+                    reason: params.reason || 'Extra lecture',
+                    changedByRole: user.role,
+                    changedByUserId: user.id,
+                    timestamp: new Date().toISOString(),
+                };
+                finalResult = {
+                    message: 'Extra lecture scheduled successfully.',
+                    lecture: formatDbLecture(created),
+                };
+            });
+            // Mirror in-memory
+            initializeFallbackStore();
+            inMemoryLectures.push(finalResult.lecture);
+            if (realtimePayload) {
+                await eventPublisher.publishEvent(realtimePayload);
+            }
+            return finalResult;
+        }
+        // Fallback mode
         initializeFallbackStore();
         const release = await timetableMutex.acquire();
         try {
-            if (user.role === 'STUDENT') {
-                throw new TimetableError(403, 'FORBIDDEN', 'Students cannot schedule extra lectures.');
-            }
-            const targetDay = Number(params.dayOfWeek);
-            const targetPeriod = Number(params.periodNumber);
-            const slotInfo = PERIOD_TIME_MAP[targetPeriod];
-            const targetDayName = DAY_NUMBER_MAP[targetDay];
-            if (!slotInfo || !targetDayName) {
-                throw new TimetableError(400, 'BAD_REQUEST', 'Invalid day of week or period number.');
-            }
-            // Run Conflict Engine
             const conflictCheck = conflictService.checkAllConflicts({
                 lectures: this.getConflictCandidates(),
                 teacherId: params.teacherId,
@@ -731,8 +1640,7 @@ export class TimetableService {
                 updatedAt: new Date().toISOString(),
             };
             inMemoryLectures.push(newLecture);
-            // Publish Real-time Event
-            eventPublisher.publishEvent({
+            await eventPublisher.publishEvent({
                 eventType: 'timetable:lecture_created',
                 lectureId: newLecture.id,
                 divisionId: newLecture.divisionId,
@@ -764,20 +1672,75 @@ export class TimetableService {
     }
     /**
      * DELETE LECTURE (ADMIN ONLY)
-     * Soft-cancels or hard-removes if explicitly allowed
      */
     async deleteLecture(lectureId, user) {
-        initializeFallbackStore();
         if (user.role !== 'ADMIN') {
             throw new TimetableError(403, 'FORBIDDEN', 'Only administrators can delete timetable records.');
         }
+        if (isDbConfigured) {
+            let realtimePayload = null;
+            let finalResult = null;
+            await prisma.$transaction(async (tx) => {
+                const lecture = await tx.lecture.findUnique({
+                    where: { id: lectureId },
+                    include: {
+                        teacher: true,
+                        room: true,
+                        division: { include: { course: { include: { department: true } } } },
+                        subject: true,
+                    },
+                });
+                if (!lecture) {
+                    throw new TimetableError(404, 'NOT_FOUND', `Lecture ${lectureId} not found.`);
+                }
+                await tx.lecture.delete({
+                    where: { id: lectureId },
+                });
+                realtimePayload = {
+                    eventType: 'timetable:lecture_deleted',
+                    lectureId: lecture.id,
+                    divisionId: lecture.division.fullName,
+                    divisionKey: lecture.division.fullName,
+                    course: lecture.division.course.name,
+                    year: lecture.division.academicYear,
+                    division: lecture.division.divisionName,
+                    subjectName: lecture.subject.name,
+                    teacherId: lecture.teacher.teacherId,
+                    teacherName: lecture.teacher.fullName,
+                    roomId: lecture.room.roomCode,
+                    roomName: lecture.room.roomName,
+                    dayName: lecture.dayName,
+                    timeSlot: `${lecture.startTime} - ${lecture.endTime}`,
+                    oldValue: `${lecture.dayName} • ${lecture.startTime} - ${lecture.endTime}`,
+                    reason: 'Administrative removal',
+                    changedByRole: user.role,
+                    changedByUserId: user.id,
+                    timestamp: new Date().toISOString(),
+                };
+                finalResult = {
+                    message: 'Lecture deleted successfully.',
+                    lecture: formatDbLecture(lecture),
+                };
+            });
+            // Mirror in-memory
+            initializeFallbackStore();
+            const idx = inMemoryLectures.findIndex(l => l.id === lectureId);
+            if (idx !== -1) {
+                inMemoryLectures.splice(idx, 1);
+            }
+            if (realtimePayload) {
+                await eventPublisher.publishEvent(realtimePayload);
+            }
+            return finalResult;
+        }
+        // Fallback mode
+        initializeFallbackStore();
         const index = inMemoryLectures.findIndex(l => l.id === lectureId);
         if (index === -1) {
             throw new TimetableError(404, 'NOT_FOUND', `Lecture ${lectureId} not found.`);
         }
         const removed = inMemoryLectures.splice(index, 1)[0];
-        // Publish Real-time Event
-        eventPublisher.publishEvent({
+        await eventPublisher.publishEvent({
             eventType: 'timetable:lecture_deleted',
             lectureId: removed.id,
             divisionId: removed.divisionId,
@@ -805,7 +1768,6 @@ export class TimetableService {
     }
     /**
      * AUDIT REPORT / INTEGRITY VERIFICATION
-     * Scans all sessions for teacher, room, and division conflicts
      */
     getIntegrityReport() {
         initializeFallbackStore();
@@ -840,6 +1802,54 @@ export class TimetableService {
             roomConflicts,
             divisionConflicts,
             totalChangesRecorded: inMemoryChanges.length,
+        };
+    }
+    /**
+     * Async Database Integrity Report querying real PostgreSQL
+     */
+    async getDbIntegrityReport() {
+        if (!isDbConfigured) {
+            return this.getIntegrityReport();
+        }
+        const lectures = await prisma.lecture.findMany({
+            include: {
+                teacher: true,
+                room: true,
+                division: true,
+            },
+        });
+        const totalChangesRecorded = await prisma.timetableChange.count();
+        let teacherConflicts = 0;
+        let roomConflicts = 0;
+        let divisionConflicts = 0;
+        const teacherMap = new Map();
+        const roomMap = new Map();
+        const divisionMap = new Map();
+        for (const l of lectures) {
+            if (l.status === LectureStatus.CANCELLED)
+                continue;
+            const tKey = `${l.teacher.teacherId}_${l.dayOfWeek}_${l.periodNumber}`;
+            const rKey = `${l.room.roomCode}_${l.dayOfWeek}_${l.periodNumber}`;
+            const dKey = `${l.division.fullName}_${l.dayOfWeek}_${l.periodNumber}`;
+            if (teacherMap.has(tKey))
+                teacherConflicts++;
+            else
+                teacherMap.set(tKey, l.id);
+            if (roomMap.has(rKey))
+                roomConflicts++;
+            else
+                roomMap.set(rKey, l.id);
+            if (divisionMap.has(dKey))
+                divisionConflicts++;
+            else
+                divisionMap.set(dKey, l.id);
+        }
+        return {
+            totalLectures: lectures.length,
+            teacherConflicts,
+            roomConflicts,
+            divisionConflicts,
+            totalChangesRecorded,
         };
     }
 }

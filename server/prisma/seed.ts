@@ -3,6 +3,7 @@ import { DEPARTMENTS_DATA, INITIAL_CLASSROOMS } from '../../client/src/data/mock
 import { TEACHERS_DATA } from '../../client/src/data/teachersData.js';
 import { STUDENTS_DATA } from '../../client/src/data/studentsData.js';
 import { MASTER_TIMETABLE } from '../../client/src/data/timetableData.js';
+import { hashPassword } from '../src/utils/password.js';
 
 const prisma = new PrismaClient();
 
@@ -20,8 +21,14 @@ async function main() {
     return;
   }
 
+  // Pre-calculate standard dev password hash for all users
+  const defaultPasswordHash = await hashPassword('password123');
+
+  // Clean existing schedule records to ensure exact count parity
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE timetable_changes, notifications, lectures, teacher_subjects, subjects CASCADE;');
+
   // 1. Departments (4)
-  console.log('Seeding departments...');
+  console.log('Seeding departments (4)...');
   const deptMap = new Map<string, string>(); // code -> id
   for (const dept of DEPARTMENTS_DATA) {
     const record = await prisma.department.upsert({
@@ -36,7 +43,7 @@ async function main() {
   }
 
   // 2. Courses (8)
-  console.log('Seeding courses...');
+  console.log('Seeding courses (8)...');
   const officialCourses = [
     { code: 'BSC_IT', name: 'BSc IT', dept: 'Science & Technology' },
     { code: 'BSC_CS', name: 'BSc CS', dept: 'Science & Technology' },
@@ -66,7 +73,7 @@ async function main() {
   }
 
   // 3. Rooms (62)
-  console.log('Seeding rooms...');
+  console.log('Seeding rooms (62)...');
   const roomMap = new Map<string, string>(); // roomCode/roomName -> id
   for (const r of INITIAL_CLASSROOMS) {
     const code = r.code || r.name;
@@ -97,28 +104,39 @@ async function main() {
     roomMap.set(code, record.id);
   }
 
-  // 4. Admin User
+  // 4. Admin User (1)
+  console.log('Seeding admin user...');
   await prisma.user.upsert({
     where: { email: 'admin@syncampus.ac.in' },
-    update: { role: UserRole.ADMIN, identifier: 'ADMIN01' },
+    update: {
+      role: UserRole.ADMIN,
+      identifier: 'ADMIN01',
+      passwordHash: defaultPasswordHash,
+    },
     create: {
       email: 'admin@syncampus.ac.in',
       identifier: 'ADMIN01',
       role: UserRole.ADMIN,
+      passwordHash: defaultPasswordHash,
     },
   });
 
   // 5. Teachers & Teacher Users (72)
-  console.log('Seeding teachers and faculty users...');
+  console.log('Seeding teachers and faculty users (72)...');
   const teacherRecordMap = new Map<string, string>(); // teacherId (e.g. T001) -> DB id
   for (const t of TEACHERS_DATA) {
     const user = await prisma.user.upsert({
       where: { email: t.email.toLowerCase() },
-      update: { role: UserRole.TEACHER, identifier: t.id },
+      update: {
+        role: UserRole.TEACHER,
+        identifier: t.id,
+        passwordHash: defaultPasswordHash,
+      },
       create: {
         email: t.email.toLowerCase(),
         identifier: t.id,
         role: UserRole.TEACHER,
+        passwordHash: defaultPasswordHash,
       },
     });
 
@@ -150,7 +168,7 @@ async function main() {
   }
 
   // 6. Divisions (51)
-  console.log('Seeding divisions...');
+  console.log('Seeding divisions (51)...');
   const divisionRecordMap = new Map<string, string>(); // fullName (e.g. BSc IT_FY_A) -> DB id
   for (const l of MASTER_TIMETABLE) {
     if (divisionRecordMap.has(l.divisionKey)) continue;
@@ -181,11 +199,16 @@ async function main() {
   for (const s of STUDENTS_DATA) {
     const user = await prisma.user.upsert({
       where: { email: s.email.toLowerCase() },
-      update: { role: UserRole.STUDENT, identifier: s.id },
+      update: {
+        role: UserRole.STUDENT,
+        identifier: s.id,
+        passwordHash: defaultPasswordHash,
+      },
       create: {
         email: s.email.toLowerCase(),
         identifier: s.id,
         role: UserRole.STUDENT,
+        passwordHash: defaultPasswordHash,
       },
     });
 
@@ -220,15 +243,15 @@ async function main() {
     });
   }
 
-  // 8. Subjects (144)
-  console.log('Seeding subjects and teacher-subject mappings...');
-  const subjectRecordMap = new Map<string, string>(); // courseId_name -> subject id
+  // 8. Subjects (144) & Teacher-Subject Mappings (204)
+  console.log('Seeding subjects (144) and teacher-subject mappings (204)...');
+  const subjectRecordMap = new Map<string, string>(); // courseId_year_name -> subject id
   let subIndex = 1;
 
   for (const l of MASTER_TIMETABLE) {
     const courseId = courseMap.get(l.course);
     if (!courseId) continue;
-    const subKey = `${courseId}_${l.subject}`;
+    const subKey = `${courseId}_${l.year}_${l.subject}`;
 
     if (!subjectRecordMap.has(subKey)) {
       const code = `SUBJ-${subIndex++}`;
@@ -254,7 +277,7 @@ async function main() {
       subjectRecordMap.set(subKey, record.id);
     }
 
-    // 9. Teacher-Subject Mappings
+    // Teacher-Subject Mappings
     const subjectId = subjectRecordMap.get(subKey);
     const teacherDbId = teacherRecordMap.get(l.teacherId);
     if (subjectId && teacherDbId) {
@@ -295,7 +318,7 @@ async function main() {
   for (const l of MASTER_TIMETABLE) {
     const divisionId = divisionRecordMap.get(l.divisionKey);
     const courseId = courseMap.get(l.course);
-    const subKey = `${courseId}_${l.subject}`;
+    const subKey = `${courseId}_${l.year}_${l.subject}`;
     const subjectId = subjectRecordMap.get(subKey);
     const teacherId = teacherRecordMap.get(l.teacherId);
     const roomId = roomMap.get(l.classroom);

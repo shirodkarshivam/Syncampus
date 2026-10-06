@@ -10,4 +10,5 @@ export const ENV = {
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   BCRYPT_ROUNDS: parseInt(process.env.BCRYPT_ROUNDS || '10', 10),
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  AUTH_ENABLED: process.env.AUTH_ENABLED !== 'false',
 };

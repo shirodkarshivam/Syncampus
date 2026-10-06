@@ -14,8 +14,11 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:verify": "tsx src/utils/verifyDatabase.ts",
     "test:auth": "tsx scripts/testAuth.ts",
+    "test:otp": "tsx scripts/testOtpAndAuth.ts",
     "test:timetable": "tsx scripts/testTimetable.ts",
-    "test:realtime": "tsx scripts/testPart5Realtime.ts"
+    "test:realtime": "tsx scripts/testPart5Realtime.ts",
+    "test:database": "tsx scripts/testPart6Database.ts",
+    "test:all": "tsx scripts/testAuth.ts && tsx scripts/testOtpAndAuth.ts && tsx scripts/testTimetable.ts && tsx scripts/testPart5Realtime.ts && tsx scripts/testPart6Database.ts"
   },
   "keywords": [
     "syncampus",
@@ -39,12 +42,14 @@
     "socket.io": "^4.8.4"
   },
   "devDependencies": {
+    "@embedded-postgres/windows-x64": "^18.4.0-beta.17",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.7.4",
+    "embedded-postgres": "^18.4.0-beta.17",
     "prisma": "^5.20.0",
     "socket.io-client": "^4.8.4",
     "tsx": "^4.19.1",

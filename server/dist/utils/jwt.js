@@ -9,11 +9,8 @@ export function generateAccessToken(payload) {
         expiresIn: ENV.JWT_ACCESS_EXPIRES_IN,
     });
 }
-/**
- * Generates a long-lived refresh token.
- */
 export function generateRefreshToken(payload) {
-    return jwt.sign(payload, ENV.JWT_REFRESH_SECRET, {
+    return jwt.sign({ ...payload, jti: crypto.randomUUID() }, ENV.JWT_REFRESH_SECRET, {
         expiresIn: ENV.JWT_REFRESH_EXPIRES_IN,
     });
 }
